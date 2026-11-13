@@ -2,12 +2,13 @@ import { BackToTop, Button, Floating, Callout, Divider, Metrics, Page, Pie, Sect
 import type { CSSProperties, ReactNode } from "grok/canvas";
 
 type HomeId = "rookie" | "stars" | "legends";
-type PackId = HomeId | "standard" | "potw" | "boom";
+type SeasonId = "superbowl" | "rookies" | "halloween" | "thanksgiving" | "christmas";
+type PackId = HomeId | "standard" | "potw" | "boom" | "season";
 type RarityId = "base" | "silver" | "kings" | "walls" | "phenom" | "gold" | "potw" | "auto" | "super";
 type Stage = "idle" | "tearing" | "reveal" | "multi";
 interface Rarity { id: RarityId; name: string; short: string; tenths: Record<PackId, number>; rank: number; frame: string; ink: string; glow: string; bg: string }
 interface Team { abbr: string; name: string; primary: string; secondary: string }
-interface Player { id: string; name: string; team: Team; pos: string; num: number; tier: number; packId: HomeId }
+interface Player { id: string; name: string; team: Team; pos: string; num: number; tier: number; packId: HomeId | "season"; season?: SeasonId }
 interface Card { uid: string; playerId: string; rarity: RarityId; packId: PackId; seq: number }
 interface RCard extends Card { flipped: boolean }
 interface Pack { id: PackId; name: string; hint: string; blurb: string; bg: string; trim: string; thumb: string; price: number }
@@ -15,10 +16,42 @@ interface Meta { daily: string; dailyN: number; sets: string[]; ach: string[] }
 interface Save { v: 2; collection: Card[]; openedCounts: Record<PackId, number>; soundOn: boolean; cardSeq: number; readyPack: { packId: PackId } | null; balance: number; pulls: Record<string, number>; supers: string[]; locked: boolean; meta: Meta }
 
 const SET = "Gridiron Legends";
-const VERSION = "3.5"; // bump by 0.1 with each change
+const VERSION = "3.6"; // bump by 0.1 with each change
 const YEAR = "2026";
 const HOME: HomeId[] = ["rookie", "stars", "legends"];
-const PIDS: PackId[] = ["standard", "rookie", "stars", "legends", "potw", "boom"];
+const SEASON_IDS: SeasonId[] = ["superbowl", "rookies", "halloween", "thanksgiving", "christmas"];
+const seasonOf = (d: Date = new Date()): SeasonId => {
+  const m = d.getMonth();
+  if (m >= 1 && m <= 7) return "superbowl";
+  if (m === 8) return "rookies";
+  if (m === 9) return "halloween";
+  if (m === 10) return "thanksgiving";
+  return "christmas";
+};
+const nextSeasonChange = (d: Date = new Date()): { id: SeasonId; at: Date } => {
+  const y = d.getFullYear(), m = d.getMonth(), cur = seasonOf(d);
+  if (cur === "superbowl") return { id: "rookies", at: new Date(y, 8, 1) };
+  if (cur === "rookies") return { id: "halloween", at: new Date(y, 9, 1) };
+  if (cur === "halloween") return { id: "thanksgiving", at: new Date(y, 10, 1) };
+  if (cur === "thanksgiving") return { id: "christmas", at: new Date(y, 11, 1) };
+  return { id: "superbowl", at: new Date(m === 0 ? y : y + 1, 1, 1) };
+};
+const formatLongDate = (d: Date): string => d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+interface SeasonTheme { id: SeasonId; name: string; range: string; hint: string; blurb: string; bg: string; trim: string; skin: { a: string; b: string; ink: string; edge: string } }
+const SEASON_THEME: Record<SeasonId, SeasonTheme> = {
+  superbowl: { id: "superbowl", name: "Super Bowl", range: "February–August", hint: "Super Bowl", blurb: "Stars from recent Super Bowls: the players who shone on the biggest stage, from this year's champions back through recent February Sundays.", bg: "linear-gradient(165deg, #0b1a33 0%, #c9a227 42%, #f5e2a3 58%, #7a5b12 100%)", trim: "#fff3c0", skin: { a: "#d4b14a", b: "#14244a", ink: "#ffffff", edge: "#fff0b0" } },
+  rookies: { id: "rookies", name: "Rookies", range: "September", hint: "Rookies", blurb: "A fresh-class Season pack: standout current and recent rookies, with three exclusive chase 1/1s that rotate in only during September.", bg: "linear-gradient(165deg, #05261a 0%, #1aa35a 45%, #0a4a2c 100%)", trim: "#c8ffd9", skin: { a: "#1dbf6a", b: "#06351f", ink: "#ffffff", edge: "#b9ffd4" } },
+  halloween: { id: "halloween", name: "Halloween", range: "October", hint: "Halloween", blurb: "A spooky-fun Season pack: Scary Terry, pass-rush monsters and other Halloween-fitting names, in orange and black.", bg: "linear-gradient(165deg, #14080e 0%, #ef7a16 42%, #5b1480 100%)", trim: "#ffc07a", skin: { a: "#ff7a18", b: "#1a0a16", ink: "#ffffff", edge: "#ffc07a" } },
+  thanksgiving: { id: "thanksgiving", name: "Thanksgiving", range: "November", hint: "Thanksgiving", blurb: "Built around the classic Thanksgiving games: Cowboys and Lions stars, plus the supporting casts who show up every late November.", bg: "linear-gradient(165deg, #2a1408 0%, #c45c12 40%, #7a2e0a 100%)", trim: "#ffd7a0", skin: { a: "#e07020", b: "#3a1608", ink: "#ffffff", edge: "#ffd7a0" } },
+  christmas: { id: "christmas", name: "Christmas", range: "December–January", hint: "Christmas", blurb: "A holiday Season pack: stars of Christmas Day and weekend games, with a nod to St. Nick, in green, red and gold.", bg: "linear-gradient(165deg, #0a2a18 0%, #1f8a4a 38%, #b81c2c 72%, #7a1218 100%)", trim: "#ffe08a", skin: { a: "#1e9a4e", b: "#7a1020", ink: "#ffffff", edge: "#ffe08a" } },
+};
+const SEASON_PRICE = 80;
+const makeSeasonPack = (d: Date = new Date()): Pack => {
+  const t = SEASON_THEME[seasonOf(d)];
+  return { id: "season", name: "Season Pack", hint: t.hint, blurb: t.blurb, bg: t.bg, trim: t.trim, thumb: "S", price: SEASON_PRICE };
+};
+
+const PIDS: PackId[] = ["standard", "rookie", "stars", "legends", "season", "potw", "boom"];
 const RAINBOW = "linear-gradient(120deg, #ff4d6d, #ffb000, #3dff8a, #3dc6ff, #c44dff, #ff4d6d)";
 
 // Boom or Bust pack odds in tenths of a percent: Base is the bust, Auto and 1/1 are the booms, plus the usual 0.4 percent POTW. Nothing else drops.
@@ -35,18 +68,20 @@ const RARITIES: Rarity[] = ([
   ["potw", "Player of the Week", "POTW", 4, 4, 4, 4, 300, "#1fd37a", "#04281a", "rgba(40,235,130,0.95)", "linear-gradient(180deg, #eafff3, #b6f2d0)"],
   ["auto", "Autograph", "Auto", 55, 55, 150, 14, 0, "#6ee0c4", "#083028", "rgba(80,230,190,0.95)", "linear-gradient(180deg, #f3fff9, #d9f3ea)"],
   ["super", "1/1 Superfractal", "1/1", 15, 15, 50, 1, 0, "#d46cff", "#fbeaff", "rgba(210,120,255,1)", "linear-gradient(135deg, #3b0a4a 0%, #1a1040 35%, #0d2a3a 70%, #3a0a2a 100%)"],
-] as [RarityId, string, string, number, number, number, number, number, string, string, string, string][]).map(([id, name, short, r, s, l, t, w, frame, ink, glow, bg], i) => ({ id, name, short, tenths: { rookie: r, stars: s, legends: l, standard: t, potw: w, boom: BOOM_TENTHS[id] ?? 0 }, rank: i + 1, frame, ink, glow, bg }));
+] as [RarityId, string, string, number, number, number, number, number, string, string, string, string][]).map(([id, name, short, r, s, l, t, w, frame, ink, glow, bg], i) => ({ id, name, short, tenths: { rookie: r, stars: s, legends: l, standard: t, potw: w, boom: BOOM_TENTHS[id] ?? 0, season: s }, rank: i + 1, frame, ink, glow, bg }));
 const RB = Object.fromEntries(RARITIES.map((r) => [r.id, r])) as Record<RarityId, Rarity>;
 
 const PACKS: Pack[] = [
   { id: "standard", name: "Standard Pack", hint: "All players", blurb: "Players from across the whole set at regular odds. No chase cards.", bg: "repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0 1px, rgba(0,0,0,0.05) 1px 3px), linear-gradient(165deg, #1e2429 0%, #8e98a3 45%, #39414a 100%)", trim: "#e6ebf0", thumb: "1", price: 10 },
-  { id: "rookie", name: "Rookie Pack", hint: "80+", blurb: "Current young players and recent rookies from across the league.", bg: "linear-gradient(165deg, #061a40 0%, #2f7bff 45%, #0a2c78 100%)", trim: "#cfe2ff", thumb: "9", price: 75 },
+  { id: "rookie", name: "Rising Stars Pack", hint: "80+", blurb: "Current young players and recent standouts from across the league.", bg: "linear-gradient(165deg, #061a40 0%, #2f7bff 45%, #0a2c78 100%)", trim: "#cfe2ff", thumb: "9", price: 75 },
   { id: "stars", name: "Stars Pack", hint: "80+", blurb: "Today's established star players from across the league.", bg: "linear-gradient(165deg, #3a0612 0%, #e0314f 45%, #5a0a1f 100%)", trim: "#ffd0d8", thumb: "15", price: 75 },
   { id: "legends", name: "Legends Pack", hint: "88+", blurb: "Retired all-time greats, three from each team, with the best odds in the set.", bg: "linear-gradient(165deg, #4a3408 0%, #f0c44a 40%, #8a5a10 100%)", trim: "#fff3c0", thumb: "88", price: 300 },
+  makeSeasonPack(),
   { id: "potw", name: "Player of the Week Pack", hint: "30% POTW", blurb: "Green Player of the Week cards: 30% POTW, 70% Silver parallels from the whole set.", bg: "repeating-linear-gradient(90deg, rgba(255,255,255,0.07) 0 10px, rgba(0,0,0,0.05) 10px 20px), linear-gradient(165deg, #04301c 0%, #1fd37a 45%, #0a6b3c 100%)", trim: "#d6ffe9", thumb: "W", price: 45 },
   { id: "boom", name: "Boom or Bust Pack", hint: "Boom/Bust", blurb: "All-or-nothing, from every player in the set: four in five pulls are a Bust worth a few coins, but one in five is a Boom: an Autograph (typically 350+) or 1/1 (typically 650+). The average pull sits just below the price.", bg: "linear-gradient(115deg, #0c0c10 0%, #0c0c10 47%, #e0141e 47%, #8f0a12 100%)", trim: "#ffb3a0", thumb: "B", price: 100 },
 ];
 const PB = Object.fromEntries(PACKS.map((p) => [p.id, p])) as Record<PackId, Pack>;
+const packOf = (id: PackId): Pack => (id === "season" ? makeSeasonPack() : PB[id]);
 
 const TEAMS: Team[] = "ARI,Arizona Cardinals,97233F,FFB612;ATL,Atlanta Falcons,A71930,101820;BAL,Baltimore Ravens,241773,9E7C0C;BUF,Buffalo Bills,00338D,C60C30;CAR,Carolina Panthers,0085CA,101820;CHI,Chicago Bears,0B162A,C83803;CIN,Cincinnati Bengals,FB4F14,101820;CLE,Cleveland Browns,311D00,FF3C00;DAL,Dallas Cowboys,041E42,869397;DEN,Denver Broncos,FB4F14,002244;DET,Detroit Lions,0076B6,B0B7BC;GB,Green Bay Packers,203731,FFB612;HOU,Houston Texans,03202F,A71930;IND,Indianapolis Colts,002C5F,A2AAAD;JAX,Jacksonville Jaguars,006778,D7A22A;KC,Kansas City Chiefs,E31837,FFB612;LV,Las Vegas Raiders,101820,A5ACAF;LAC,Los Angeles Chargers,0080C6,FFC20E;LAR,Los Angeles Rams,003594,FFA300;MIA,Miami Dolphins,008E97,FC4C02;MIN,Minnesota Vikings,4F2683,FFC62F;NE,New England Patriots,002244,C60C30;NO,New Orleans Saints,101820,D3BC8D;NYG,New York Giants,0B2265,A71930;NYJ,New York Jets,125740,101820;PHI,Philadelphia Eagles,004C54,A5ACAF;PIT,Pittsburgh Steelers,101820,FFB612;SF,San Francisco 49ers,AA0000,B3995D;SEA,Seattle Seahawks,002244,69BE28;TB,Tampa Bay Buccaneers,D50A0A,0A0A08;TEN,Tennessee Titans,0C2340,4B92DB;WAS,Washington Commanders,5A1414,FFB612".split(";").map((row) => {
   const [abbr = "", name = "", a = "", b = ""] = row.split(",");
@@ -67,6 +102,28 @@ const PLAYERS: Player[] = ([] as Player[]).concat(...HOME.map((packId) => ROSTER
   return { id: home.abbr + "-" + (idn || name), name, team, pos, num: Number(num), tier: Number(tier), packId };
 })));
 const PBYID: Record<string, Player> = Object.fromEntries(PLAYERS.map((p) => [p.id, p]));
+// Seasonal pack: a themed roster for each window of the year. Players are cloned from the main set with unique ids so a Super Bowl Mahomes 1/1 is not the same card as the Stars chase Mahomes. All seasons stay in PBYID so pulled cards still load after the season ends.
+const SEASON_ROSTER: Record<SeasonId, { chase: string[]; pool: string[] }> = {
+  superbowl: { chase: ["Jalen Hurts", "Saquon Barkley", "Patrick Mahomes"], pool: ["Christian McCaffrey", "Brock Purdy", "Travis Kelce", "A.J. Brown", "DeVonta Smith", "Jalen Carter", "Fred Warner", "George Kittle", "Puka Nacua", "Matthew Stafford", "Ja'Marr Chase", "Joe Burrow", "Isiah Pacheco", "Chris Jones", "Trent Williams", "Cooper DeJean", "Xavier McKinney", "Deebo Samuel"] },
+  rookies: { chase: ["Cam Ward", "Ashton Jeanty", "Travis Hunter"], pool: ["Tetairoa McMillan", "Abdul Carter", "Omarion Hampton", "Tyler Warren", "Colston Loveland", "Jaxson Dart", "Shedeur Sanders", "Mason Graham", "Luther Burden III", "Emeka Egbuka", "Matthew Golden", "Will Johnson", "Walter Nolen", "Drake Maye", "Caleb Williams", "Jayden Daniels", "Malik Nabers"] },
+  halloween: { chase: ["Terry McLaurin", "Myles Garrett", "Maxx Crosby"], pool: ["T.J. Watt", "Dexter Lawrence", "Sauce Gardner", "Roquan Smith", "Derrick Henry", "DK Metcalf", "Patrick Surtain II", "Brock Bowers", "Stefon Diggs", "Baker Mayfield", "Justin Herbert", "Jordan Addison"] },
+  thanksgiving: { chase: ["CeeDee Lamb", "Amon-Ra St. Brown", "Micah Parsons"], pool: ["Dak Prescott", "Jared Goff", "Jahmyr Gibbs", "David Montgomery", "Sam LaPorta", "Penei Sewell", "Brian Branch", "Jake Ferguson", "Trevon Diggs", "Tyler Smith", "Jack Campbell", "Jameson Williams", "Javonte Williams", "Tony Pollard", "Aidan Hutchinson"] },
+  christmas: { chase: ["Justin Jefferson", "Lamar Jackson", "Nick Bosa"], pool: ["Chris Godwin", "Mark Andrews", "Zay Flowers", "C.J. Stroud", "Nico Collins", "Tee Higgins", "Jordan Love", "Sam Darnold", "George Pickens", "Ladd McConkey", "Breece Hall", "Jalen Ramsey", "Derwin James"] },
+};
+const seasonPlayer = (season: SeasonId, name: string): Player => {
+  const src = PLAYERS.find((p) => p.name === name);
+  if (!src) throw new Error("Missing seasonal player: " + name);
+  return { ...src, id: "szn-" + season + "-" + src.id, packId: "season", season };
+};
+const SEASON_PLAYERS: Player[] = SEASON_IDS.flatMap((id) => {
+  const r = SEASON_ROSTER[id];
+  return r.chase.concat(r.pool).map((n) => seasonPlayer(id, n));
+});
+for (const p of SEASON_PLAYERS) PBYID[p.id] = p;
+const SEASON_CHASE: Record<SeasonId, Player[]> = Object.fromEntries(SEASON_IDS.map((id) => [id, SEASON_PLAYERS.filter((p) => p.season === id && SEASON_ROSTER[id].chase.includes(p.name))])) as Record<SeasonId, Player[]>;
+const ALL_SEASON_CHASE: Player[] = SEASON_IDS.flatMap((id) => SEASON_CHASE[id]);
+const SEASON_CHASE_IDS = new Set(ALL_SEASON_CHASE.map((p) => p.id));
+const currentSeasonPlayers = (): Player[] => SEASON_PLAYERS.filter((p) => p.season === seasonOf());
 // Players of the Week: standout performers named weekly award winners in the 2026 season (NFL.com / Pro-Football-Reference). Any pack can pull one at a very rare rate; the POTW pack draws from this list too.
 const POTW_NAMES = ["Kenneth Walker III", "D'Andre Swift", "Josh Allen", "Brock Purdy", "Brock Bowers", "Bijan Robinson", "Drake Maye", "Tetairoa McMillan", "Jaylen Warren", "Jahmyr Gibbs", "C.J. Stroud", "Caleb Williams", "Joe Burrow", "Michael Penix Jr.", "Tee Higgins", "Jordan Love", "T.J. Watt", "Foyesade Oluokun", "Jalen Ramsey", "Chris Jones"];
 const POTW_PLAYERS: Player[] = POTW_NAMES.map((n) => PLAYERS.find((p) => p.name === n)).filter((p): p is Player => p !== undefined);
@@ -75,26 +132,29 @@ const isDal = (c: Card): boolean => playerOf(c.playerId).team.abbr === "DAL";
 
 // Chase cards: named true one-of-ones in each home pack. On a 1/1 roll there is a CHASE_SHARE chance the 1/1 is one of the pack's chase players (while any are unpulled); otherwise it is a regular 1/1. The Standard pack draws from every player but never a chase 1/1.
 const CHASE_SHARE = 0.12;
-const poolOf = (id: PackId): Player[] => (id === "standard" || id === "potw" || id === "boom" ? PLAYERS : PLAYERS.filter((p) => p.packId === id));
-// Insert sets: themed subsets drawn from the pack's own pool. Gridiron Kings are the top quarterbacks, Defensive Walls the top defenders, Rookie Phenoms the best young players (Rookie pack only).
+const poolOf = (id: PackId): Player[] => (id === "season" ? currentSeasonPlayers() : (id === "standard" || id === "potw" || id === "boom" ? PLAYERS : PLAYERS.filter((p) => p.packId === id)));
+const valuePoolOf = (id: PackId): Player[] => (id === "season" ? SEASON_PLAYERS : poolOf(id));
+// Insert sets: themed subsets drawn from the pack's own pool. Gridiron Kings are the top quarterbacks, Defensive Walls the top defenders, Rookie Phenoms the best young players (Rising Stars pack only).
 const INSERT_POOL: Partial<Record<RarityId, (p: Player) => boolean>> = {
   kings: (p) => p.pos === "QB" && ratingOf(p) >= 75,
   walls: (p) => ["DE", "DT", "LB", "CB", "S"].includes(p.pos) && ratingOf(p) >= 82,
   phenom: (p) => p.packId === "rookie" && ratingOf(p) >= 80,
 };
 const poolCache: Record<string, Player[]> = {};
-const rpool = (id: PackId, r: RarityId): Player[] => {
+const rpool = (id: PackId, r: RarityId, allSeasons = false): Player[] => {
   if (r === "potw") return POTW_PLAYERS;
+  const base = allSeasons ? valuePoolOf(id) : poolOf(id);
   const f = INSERT_POOL[r];
-  if (!f) return poolOf(id);
-  const k = id + "|" + r;
-  return poolCache[k] ?? (poolCache[k] = poolOf(id).filter(f));
+  if (!f) return base;
+  const k = id + "|" + r + (allSeasons ? "|all" : "");
+  return poolCache[k] ?? (poolCache[k] = base.filter(f));
 };
 const CHASE_NAMES: Record<HomeId, string[]> = { rookie: ["Caleb Williams", "Travis Hunter", "Cam Ward", "Ashton Jeanty", "Drake Maye", "Marvin Harrison Jr."], stars: ["Patrick Mahomes", "Josh Allen", "Lamar Jackson", "Joe Burrow", "Bijan Robinson", "Ja'Marr Chase"], legends: ["Tom Brady", "Jerry Rice", "Joe Montana", "Jim Brown", "Walter Payton", "Emmitt Smith"] };
 const CHASE: Record<HomeId, Player[]> = { rookie: [], stars: [], legends: [] };
 for (const h of HOME) CHASE[h] = PLAYERS.filter((p) => p.packId === h && CHASE_NAMES[h].includes(p.name));
-const CHASE_IDS = new Set(([] as Player[]).concat(...HOME.map((h) => CHASE[h])).map((p) => p.id));
-const chaseOf = (id: PackId): Player[] => (id === "standard" || id === "potw" || id === "boom" ? [] : CHASE[id]);
+const HOME_CHASE_IDS = new Set(([] as Player[]).concat(...HOME.map((h) => CHASE[h])).map((p) => p.id));
+const CHASE_IDS = new Set(([] as string[]).concat(Array.from(HOME_CHASE_IDS), Array.from(SEASON_CHASE_IDS)));
+const chaseOf = (id: PackId): Player[] => (id === "season" ? SEASON_CHASE[seasonOf()] : (id === "standard" || id === "potw" || id === "boom" ? [] : CHASE[id]));
 // Boom or Bust is the one pack outside the three home packs that can hit a chase 1/1: on a 1/1 roll it draws from all of the chase players, at the same CHASE_SHARE.
 const ALL_CHASE: Player[] = ([] as Player[]).concat(...HOME.map((h) => CHASE[h]));
 const chaseDraw = (id: PackId): Player[] => (id === "boom" ? ALL_CHASE : chaseOf(id));
@@ -148,7 +208,7 @@ const POS_HYPE: Record<string, number> = { QB: 1.7, WR: 1.15, RB: 1, TE: 0.8, CB
 // Star power from the player's real rating: about 0.6 at an 80, 1.0 at 86, 2 at 93 and 3.4 at 99.
 const ratingHype = (r: number): number => 0.7 * 0.6 * Math.exp(0.0907 * (Math.min(99, Math.max(60, r)) - 80));
 const ELITE: Record<string, number> = Object.fromEntries("Patrick Mahomes:4;Josh Allen:3.5;Lamar Jackson:3.5;Joe Burrow:3;Bijan Robinson:3;Christian McCaffrey:2.5;Justin Jefferson:3;Ja'Marr Chase:3;Caleb Williams:4;Jayden Daniels:3.5;Travis Kelce:2.5;Saquon Barkley:2.5;CeeDee Lamb:2.5;Jalen Hurts:2.5;Cam Ward:3;Drake Maye:3;Travis Hunter:4;Ashton Jeanty:3;Malik Nabers:2.5;Brock Bowers:2.5;Puka Nacua:2.2;Justin Herbert:2;Micah Parsons:2;Myles Garrett:2;Tom Brady:8;Jerry Rice:6;Joe Montana:6;Walter Payton:6;Deion Sanders:6;Emmitt Smith:5;Peyton Manning:6;Barry Sanders:6;Randy Moss:5;Jim Brown:5;Dan Marino:5;John Elway:5;Brett Favre:4;Lawrence Taylor:5;Ray Lewis:3;Troy Aikman:3;Steve Young:3;Marshall Faulk:3;Adrian Peterson:4;Aaron Donald:3;Rob Gronkowski:3;Jim Kelly:2;Eli Manning:2;Drew Brees:3;Kurt Warner:2.5;Larry Fitzgerald:3;Michael Irvin:2;Terrell Davis:2;Reggie White:3;Eric Dickerson:3;LaDainian Tomlinson:3;Michael Strahan:2;Charles Woodson:2;Ed Reed:2;Troy Polamalu:2;Brian Urlacher:2;Cam Newton:2.5;Calvin Johnson:3;Tony Gonzalez:2;Jerome Bettis:2;Shannon Sharpe:2;Dak Prescott:1.5;Matthew Stafford:1.4;Aaron Rodgers:2;Brock Purdy:1.3;Jared Goff:1.2;Bo Nix:1.5;Jordan Love:1.3;C.J. Stroud:1.6;Trevor Lawrence:1.2;Baker Mayfield:1.2;Sam Darnold:1.2;Tua Tagovailoa:1.1;Kyler Murray:1.4;Jaxson Dart:1.8;Shedeur Sanders:2.5;Michael Penix Jr.:1.5;J.J. McCarthy:1.5;Marvin Harrison Jr.:1.8;Brian Thomas Jr.:1.5;Jaxon Smith-Njigba:2;Tetairoa McMillan:1.6;Omarion Hampton:1.5;Rome Odunze:1.3;Jahmyr Gibbs:2;Amon-Ra St. Brown:1.6;Jonathan Taylor:1.5;Derrick Henry:1.5;Trey McBride:1.8;George Kittle:1.5;Abdul Carter:1.8;Will Anderson Jr.:1.3;Nick Bosa:1.3;Aidan Hutchinson:1.3;T.J. Watt:1.3;Maxx Crosby:1.4;Fred Warner:1.2;Patrick Surtain II:1.3;Colston Loveland:1.3;Mason Graham:1.3;Jalen Carter:1.2;Dalton Kincaid:1.1;Sam LaPorta:1.1;Zay Flowers:1.1;Rashee Rice:1.3;Xavier Worthy:1.1".split(";").map((kv) => { const i = kv.lastIndexOf(":"); return [kv.slice(0, i), Number(kv.slice(i + 1))]; }));
-const PACK_PREM: Record<HomeId, number> = { rookie: 1.5, stars: 0.82, legends: 0.792 };
+const PACK_PREM: Record<HomeId | "season", number> = { rookie: 1.5, stars: 0.82, legends: 0.792, season: 1 };
 const MIN_PRICE = Math.min(...PACKS.map((x) => x.price));
 const hypeOf = (p: Player): number => (POS_HYPE[p.pos] ?? 1) * ratingHype(ratingOf(p)) * (ELITE[p.name] ?? 1) * PACK_PREM[p.packId];
 const rawValue = (p: Player, r: RarityId): number => {
@@ -156,20 +216,20 @@ const rawValue = (p: Player, r: RarityId): number => {
   return Math.max(V_MIN[r], Math.round(v));
 };
 // Per-pack minimum: a pack-specific offset lifts every card so the cheapest Base card in that pack is exactly this value; higher rarities and hype still scale upward from it.
-const PACK_MIN: Record<PackId, number> = { rookie: 30, stars: 54, legends: 120, standard: 5, potw: 5, boom: 5 };
+const PACK_MIN: Record<PackId, number> = { rookie: 30, stars: 54, legends: 120, standard: 5, potw: 5, boom: 5, season: 50 };
 // Premium scale: how much of a card's hype premium above its rarity minimum a pack keeps (Standard keeps 30% so its values suit a low price).
-const PACK_K: Record<PackId, number> = { rookie: 1, stars: 1, legends: 1, standard: 0.3, potw: 0.3, boom: 0.1 };
-const PACK_OFF = Object.fromEntries(PIDS.map((id) => [id, PACK_MIN[id] - Math.min(...poolOf(id).map((p) => rawValue(p, "base")))])) as Record<PackId, number>;
+const PACK_K: Record<PackId, number> = { rookie: 1, stars: 1, legends: 1, standard: 0.3, potw: 0.3, boom: 0.1, season: 1 };
+const PACK_OFF = Object.fromEntries(PIDS.map((id) => [id, PACK_MIN[id] - Math.min(...valuePoolOf(id).map((p) => rawValue(p, "base")))])) as Record<PackId, number>;
 const baseValue = (p: Player, r: RarityId, via: PackId = p.packId): number => {
   const raw = rawValue(p, r), k = PACK_K[via];
   return (k === 1 ? raw : Math.round(V_MIN[r] + (raw - V_MIN[r]) * k)) + PACK_OFF[via];
 };
 // Gold and Auto floors per pack: a lift added to every card of that rarity so the cheapest one equals the floor (about 1.5-2x the pack price for Gold, 3-4x for Auto); hype spread above it is kept and 1/1s are untouched.
-const RARITY_FLOOR: Record<PackId, Partial<Record<RarityId, number>>> = { standard: { kings: 14, walls: 14, phenom: 14, gold: 25, potw: 38, auto: 55 }, rookie: { kings: 60, walls: 60, phenom: 60, gold: 223, potw: 338, auto: 512 }, stars: { kings: 80, walls: 80, phenom: 80, gold: 112, potw: 170, auto: 270 }, legends: { kings: 150, walls: 150, phenom: 150, gold: 300, potw: 425, auto: 600 }, potw: { potw: 80 }, boom: BOOM_FLOOR };
-const RARITY_LIFT = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(Object.entries(RARITY_FLOOR[id]).map(([r, f]) => [r, (f as number) - Math.min(...rpool(id, r as RarityId).map((p) => baseValue(p, r as RarityId, id)))]))])) as Record<PackId, Record<string, number>>;
+const RARITY_FLOOR: Record<PackId, Partial<Record<RarityId, number>>> = { standard: { kings: 14, walls: 14, phenom: 14, gold: 25, potw: 38, auto: 55 }, rookie: { kings: 60, walls: 60, phenom: 60, gold: 223, potw: 338, auto: 512 }, stars: { kings: 80, walls: 80, phenom: 80, gold: 112, potw: 170, auto: 270 }, legends: { kings: 150, walls: 150, phenom: 150, gold: 300, potw: 425, auto: 600 }, season: { kings: 80, walls: 80, gold: 120, potw: 180, auto: 290 }, potw: { potw: 80 }, boom: BOOM_FLOOR };
+const RARITY_LIFT = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(Object.entries(RARITY_FLOOR[id]).map(([r, f]) => [r, (f as number) - Math.min(...rpool(id, r as RarityId, true).map((p) => baseValue(p, r as RarityId, id)))]))])) as Record<PackId, Record<string, number>>;
 const preValue = (p: Player, r: RarityId, via: PackId = p.packId): number => baseValue(p, r, via) + (RARITY_LIFT[via][r] ?? 0);
 // Per-card variation: a stable hash of player id + rarity adds 0 to 30% of the pack's cheapest value for that rarity, so cards of one rarity differ but never drop below the floor (and never change between renders or saves).
-const FLOOR_V = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(RARITIES.map((r) => [r.id, Math.min(...rpool(id, r.id).map((p) => preValue(p, r.id, id)))]))])) as Record<PackId, Record<string, number>>;
+const FLOOR_V = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(RARITIES.filter((r) => r.tenths[id] > 0 || (RARITY_FLOOR[id][r.id] ?? 0) > 0).map((r) => [r.id, Math.min(...(rpool(id, r.id, true).length ? rpool(id, r.id, true) : poolOf(id)).map((p) => preValue(p, r.id, id)))]))])) as Record<PackId, Record<string, number>>;
 const valueOf = (p: Player, r: RarityId, via: PackId = p.packId): number => preValue(p, r, via) + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 0.3 * (FLOOR_V[via][r] ?? 0));
 const cardVal = (c: Card): number => valueOf(playerOf(c.playerId), c.rarity, c.packId);
 const money = (n: number): string => "🪙 " + Math.round(n).toLocaleString("en-US");
@@ -196,7 +256,11 @@ const SETS: SetDef[] = (() => {
   out.push({ id: "full", name: "Complete Set (every player)", group: "master", players: ids(PLAYERS), reward: 3000 });
   for (const h of HOME) { const l = PLAYERS.filter((p) => p.packId === h); out.push({ id: "roster-" + h, name: PB[h].name + " full roster", group: "master", players: ids(l), reward: Math.round(l.length * PB[h].price * 0.25) }); }
   out.push({ id: "potw", name: "Players of the Week (POTW card of each)", group: "master", players: ids(POTW_PLAYERS), need: "potw", reward: POTW_PLAYERS.length * 125 });
-  out.push({ id: "chase", name: "Chase 1/1s (every chase card)", group: "master", players: ids(chase), need: "super", reward: chase.length * 400 });
+  out.push({ id: "chase", name: "Chase 1/1s (every home chase card)", group: "master", players: ids(chase), need: "super", reward: chase.length * 400 });
+  for (const sid of SEASON_IDS) {
+    const ch = SEASON_CHASE[sid];
+    out.push({ id: "szn-chase-" + sid, name: SEASON_THEME[sid].name + " chase 1/1s", group: "master", players: ids(ch), need: "super", reward: 450 });
+  }
   // One set per NFL team: every player on the team from any pack. The reward adds up 35% of each player's own pack price. Older saves may hold retired per-pack ids ("team-rookie-DAL"); those stay in the claim list so nothing is clawed back, but they match no set here.
   for (const t of TEAMS) {
     const l = PLAYERS.filter((p) => p.team.abbr === t.abbr);
@@ -232,8 +296,10 @@ const ACH: AchDef[] = [
   cnt("Five Figures", "val10k", "Binder worth 10,000 coins.", 450, 10000, (x) => x.value),
   cnt("Collector", "uniq50", "Own 50 different players.", 75, 50, (x) => x.unique),
   cnt("Completionist", "uniq200", "Own 200 different players.", 300, 200, (x) => x.unique),
-  cnt("Daily Habit", "daily1", "Claim a daily pack.", 15, 1, (x) => x.daily),
-  cnt("Week Streak", "daily7", "Claim 7 daily packs.", 150, 7, (x) => x.daily),
+  cnt("Free Pack Habit", "daily1", "Claim a free pack.", 15, 1, (x) => x.daily),
+  cnt("Free Pack Regular", "daily7", "Claim 7 free packs.", 150, 7, (x) => x.daily),
+  { id: "seasonpack", name: "Season Ticket", desc: "Open a Season pack.", reward: 30, ok: (x) => (x.opened.season ?? 0) > 0 },
+  { id: "seasonchase", name: "Season Star ★", desc: "Pull a seasonal chase 1/1.", reward: 400, ok: (x) => x.cards.some((c) => c.rarity === "super" && SEASON_CHASE_IDS.has(c.playerId)) },
   cnt("Set Builder", "set1", "Complete and claim a set.", 90, 1, (x) => x.sets),
   cnt("Set Master", "set10", "Complete and claim 10 sets.", 450, 10, (x) => x.sets),
   cnt("Pack Explorer", "allpacks", "Open every kind of pack.", 90, PIDS.length, (x) => PIDS.filter((id) => x.opened[id] > 0).length),
@@ -333,15 +399,18 @@ function drawCard(packId: PackId, takenSuper: Set<string>): Card {
 
 // ---- persistence (localStorage with in-memory fallback) ----
 const SAVE_KEY = "gl-legends-2026-v2";
-const zeroCounts = (): Record<PackId, number> => ({ rookie: 0, stars: 0, legends: 0, standard: 0, potw: 0, boom: 0 });
+const zeroCounts = (): Record<PackId, number> => ({ rookie: 0, stars: 0, legends: 0, standard: 0, potw: 0, boom: 0, season: 0 });
 const defaultMeta = (): Meta => ({ daily: "", dailyN: 0, sets: [], ach: [] });
 const localDay = (d: Date = new Date()): string => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 function loadMeta(raw: unknown): Meta {
   const m = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
-  return { daily: typeof m.daily === "string" ? m.daily : "", dailyN: typeof m.dailyN === "number" && m.dailyN >= 0 ? Math.floor(m.dailyN) : 0, sets: strs(m.sets), ach: strs(m.ach) };
+  let daily = typeof m.daily === "string" ? m.daily : "";
+  // Old daily-pack saves stored a YYYY-MM-DD claim date. Turn "claimed today" into a timestamp so the 5-minute cooldown can start; older dates are already expired.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(daily)) daily = daily === localDay() ? String(Date.now()) : "";
+  return { daily, dailyN: typeof m.dailyN === "number" && m.dailyN >= 0 ? Math.floor(m.dailyN) : 0, sets: strs(m.sets), ach: strs(m.ach) };
 }
-const isPack = (v: unknown): v is PackId => v === "rookie" || v === "stars" || v === "legends" || v === "standard" || v === "potw" || v === "boom";
+const isPack = (v: unknown): v is PackId => v === "rookie" || v === "stars" || v === "legends" || v === "standard" || v === "potw" || v === "boom" || v === "season";
 const isRarity = (v: unknown): v is RarityId => typeof v === "string" && v in RB;
 const defaultSave = (): Save => ({ v: 2, collection: [], openedCounts: zeroCounts(), soundOn: true, cardSeq: 0, readyPack: null, balance: START_BAL, pulls: {}, supers: [], locked: true, meta: defaultMeta() });
 function saveScore(s: Save): number {
@@ -1035,7 +1104,7 @@ const CSS = `
 `;
 
 // ---- cards ----
-// Card color comes from the pack (blue Rookies, crimson Stars, gold Legends); rarity is a finish layered on top.
+// Card color comes from the pack (blue Rising Stars, crimson Stars, gold Legends, plus a themed Season pack); rarity is a finish layered on top.
 interface PackSkin { a: string; b: string; ink: string; edge: string }
 const PCOL: Record<PackId, PackSkin> = {
   rookie: { a: "#2f7bff", b: "#0a2c78", ink: "#ffffff", edge: "#9cc4ff" },
@@ -1044,6 +1113,14 @@ const PCOL: Record<PackId, PackSkin> = {
   standard: { a: "#7b858f", b: "#30373e", ink: "#ffffff", edge: "#d3dae1" },
   potw: { a: "#19c26c", b: "#04502b", ink: "#ffffff", edge: "#b9ffd9" },
   boom: { a: "#d6141e", b: "#120608", ink: "#ffffff", edge: "#ff9a8a" },
+  season: SEASON_THEME[seasonOf()].skin,
+};
+const skinOf = (card: Card): PackSkin => {
+  if (card.packId === "season") {
+    const sid = playerOf(card.playerId).season;
+    if (sid) return SEASON_THEME[sid].skin;
+  }
+  return PCOL[card.packId];
 };
 // Player of the Week cards are always emerald, whichever pack they come from.
 const POTW_SKIN: PackSkin = { a: "#20d97d", b: "#06603a", ink: "#ffffff", edge: "#c8ffe2" };
@@ -1081,7 +1158,7 @@ const badgeStyle = (r: RarityId, c: boolean): CSSProperties => ({ display: "inli
 const BUST_SKIN: PackSkin = { a: "#857b70", b: "#4d4741", ink: "#f2ece3", edge: "#6b635a" };
 const isBust = (c: Card): boolean => c.packId === "boom" && c.rarity === "base";
 function skin(card: Card): Rarity {
-  const base = RB[card.rarity], p = isBust(card) ? BUST_SKIN : card.rarity === "potw" ? POTW_SKIN : PCOL[card.packId];
+  const base = RB[card.rarity], p = isBust(card) ? BUST_SKIN : card.rarity === "potw" ? POTW_SKIN : skinOf(card);
   return { ...base, ink: p.ink, frame: card.rarity === "base" ? p.edge : base.frame, bg: (card.packId === "standard" ? "repeating-linear-gradient(90deg, rgba(255,255,255,0.07) 0 1px, rgba(0,0,0,0.06) 1px 3px), " : "") + "linear-gradient(180deg, " + p.a + ", " + p.b + ")" };
 }
 function PosBadge(p: { pos: string; compact?: boolean }): ReactNode {
@@ -1195,8 +1272,8 @@ function CardStats(p: { card: Card; compact?: boolean }): ReactNode {
   );
 }
 
-function CardBack(p: { packId: PackId }): ReactNode {
-  const sk = PCOL[p.packId];
+function CardBack(p: { packId: PackId; season?: SeasonId }): ReactNode {
+  const sk = p.packId === "season" ? SEASON_THEME[p.season ?? seasonOf()].skin : PCOL[p.packId];
   const theme = useGrokTheme();
   return (
     <div style={{ width: "100%", height: "100%", boxSizing: "border-box", borderRadius: 10, padding: 7, background: "linear-gradient(160deg, " + sk.b + " 0%, " + sk.a + " 55%, " + sk.b + " 100%)", boxShadow: "0 2px 8px rgba(0,0,0,0.25)", display: "flex" }}>
@@ -1229,7 +1306,7 @@ function FlipCard(p: { card: RCard; onFlip?: () => void; charged?: boolean; burs
     >
       <div className="gl-scene" style={{ width: "100%", height: "100%", borderRadius: 12, animation: flipped && r === "super" ? "glPulseFrame " + sp("1.15s", "2.2s") + " ease-in-out infinite" : undefined }}>
         <div className={"gl-flip" + (flipped && stats ? " gl-stats" : flipped ? " gl-on" : "") + (r === "super" ? " gl-super" : "")} style={{ width: "100%", height: "100%" }}>
-          <div className="gl-face">{flipped ? <CardStats card={p.card} /> : <CardBack packId={p.card.packId} />}</div>
+          <div className="gl-face">{flipped ? <CardStats card={p.card} /> : <CardBack packId={p.card.packId} season={playerOf(p.card.playerId).season} />}</div>
           <div className="gl-face gl-front">
             <CardFace card={p.card} />
             {sweep ? <div style={{ ...ABS, inset: 0, borderRadius: 10, zIndex: 4, background: "linear-gradient(115deg, transparent 32%, " + (r === "gold" ? "rgba(255,255,230,0.85)" : r === "potw" ? "rgba(200,255,225,0.9)" : "rgba(255,255,255,0.85)") + " 50%, transparent 68%)", backgroundSize: "180% 100%", animation: (r === "gold" ? "glCoinShine " + sp("1.1s", "0.7s") + " ease-out 2" : "glHoloSweep " + sp("0.85s", "1.4s") + " linear 3") }} /> : null}
@@ -1259,6 +1336,14 @@ function PackEmblem(p: { id: PackId }): ReactNode {
   else if (p.id === "stars") body = <>{grad("#fff0f3", "#ff5c7c")}<polygon points={star} fill={fill} stroke="#ffd0d8" strokeWidth="1" strokeLinejoin="round" /></>;
   else if (p.id === "legends") body = <>{grad("#fff3c0", "#f0b930")}<path d="M3 8 L7.5 12.5 L12 4.5 L16.5 12.5 L21 8 L19 19 H5 Z" fill={fill} stroke="#4a3408" strokeWidth="1.3" strokeLinejoin="round" /><rect x="5" y="19.5" width="14" height="2.4" rx="1" fill="#4a3408" /><circle cx="12" cy="4.2" r="1.4" fill="#fff3c0" stroke="#4a3408" strokeWidth="0.8" /></>;
   else if (p.id === "boom") body = <>{grad("#6e6e7c", "#0a0a0e")}<path d="M17.3 6.4 C18.4 4.9 19.4 4.6 20.6 5" fill="none" stroke="#ffd9a8" strokeWidth="1.5" strokeLinecap="round" /><polygon points="21.2,0.9 22.1,3.2 24,3.4 22.5,4.8 23,6.9 21.2,5.8 19.4,6.9 19.9,4.8 18.4,3.4 20.3,3.2" fill="#ffb000" stroke="#ff3b1f" strokeWidth="0.6" strokeLinejoin="round" /><circle cx="10.5" cy="14.2" r="8" fill={fill} stroke="#ff6a55" strokeWidth="1.3" /><rect x="13.9" y="6.4" width="4" height="3.2" rx="0.8" transform="rotate(45 15.9 8)" fill="#3a3a44" stroke="#ff6a55" strokeWidth="0.9" /><path d="M6.2 12.4 C6.7 10.8 8 9.8 9.5 9.6" fill="none" stroke="#ffffff" strokeWidth="1.3" strokeLinecap="round" opacity="0.65" /></>;
+  else if (p.id === "season") {
+    const sid = seasonOf();
+    if (sid === "superbowl") body = <>{grad("#fff3c0", "#c9a227")}<path d="M7 4.2 H17 V9.2 C17 12.4 14.8 15 12 15.8 C9.2 15 7 12.4 7 9.2 Z" fill={fill} stroke="#fff3c0" strokeWidth="1" /><path d="M6.2 4.2 H17.8 M12 15.8 V18.6 M8 21 H16 V18.6 H8 Z" fill="#c9a227" stroke="#fff3c0" strokeWidth="1" strokeLinejoin="round" /><circle cx="12" cy="8.5" r="2" fill="#fff8dc" /></>;
+    else if (sid === "rookies") body = <>{grad("#c8ffd9", "#1aa35a")}<polygon points="12,2 14.2,8 20.5,8.2 15.6,12 17.4,18 12,14.6 6.6,18 8.4,12 3.5,8.2 9.8,8" fill={fill} stroke="#c8ffd9" strokeWidth="0.9" /><circle cx="12" cy="21" r="1.6" fill="#c8ffd9" /></>;
+    else if (sid === "halloween") body = <>{grad("#ffb04a", "#ef7a16")}<ellipse cx="12" cy="14" rx="8.2" ry="7.2" fill={fill} stroke="#ffc07a" strokeWidth="1" /><path d="M12 7 C12 7 14 3.2 16.2 4.6 C14.4 6 12 7 12 7 Z" fill="#3a8a2a" stroke="#c8ffd9" strokeWidth="0.6" /><path d="M8.4 13.2 L10.2 15.2 L8.2 15.6 M15.6 13.2 L13.8 15.2 L15.8 15.6 M9.2 18 Q12 20 14.8 18" fill="none" stroke="#2a0a12" strokeWidth="1.1" strokeLinecap="round" /></>;
+    else if (sid === "thanksgiving") body = <>{grad("#ffd7a0", "#c45c12")}<ellipse cx="12" cy="14.5" rx="5.2" ry="4.4" fill={fill} stroke="#ffd7a0" strokeWidth="0.9" /><path d="M12 10.2 C10 6.5 7 5.5 5.5 7.2 C8.2 8 10.2 10.5 12 10.2 M12 10.2 C14 6.5 17 5.5 18.5 7.2 C15.8 8 13.8 10.5 12 10.2" fill="#e07020" stroke="#ffd7a0" strokeWidth="0.7" /><circle cx="12" cy="13.6" r="1.5" fill="#2a1408" /><path d="M12 18.8 V21.4 M10.2 21.4 H13.8" stroke="#ffd7a0" strokeWidth="1.1" strokeLinecap="round" /></>;
+    else body = <>{grad("#ffe08a", "#1f8a4a")}<path d="M12 3 L13.6 9 H18.5 L14.6 12.4 L16.2 18.2 L12 14.8 L7.8 18.2 L9.4 12.4 L5.5 9 H10.4 Z" fill="#c81c2c" stroke="#ffe08a" strokeWidth="0.7" /><path d="M12 8 V22 M8.5 21.4 H15.5" stroke="#1f8a4a" strokeWidth="1.6" strokeLinecap="round" /><path d="M12 10 L7.2 16.5 M12 10 L16.8 16.5 M12 12 L8.6 18.5 M12 12 L15.4 18.5" stroke="#c8ffd0" strokeWidth="1.3" strokeLinecap="round" /></>;
+  }
   else body = <>{grad("#f2fff8", "#4fe39a")}<path d="M7 3 H17 V9 C17 12.3 14.8 14.5 12 14.5 C9.2 14.5 7 12.3 7 9 Z" fill={fill} stroke="#d6ffe9" strokeWidth="1" strokeLinejoin="round" /><path d="M7 5 H3.8 V7 C3.8 9 5.2 10.3 7.3 10.6 M17 5 H20.2 V7 C20.2 9 18.8 10.3 16.7 10.6" fill="none" stroke="#d6ffe9" strokeWidth="1.3" strokeLinecap="round" /><path d="M12 14.5 V18" stroke="#d6ffe9" strokeWidth="1.8" /><path d="M8 21.5 H16 V18.3 H8 Z" fill={fill} stroke="#d6ffe9" strokeWidth="1" strokeLinejoin="round" /></>;
   return <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true" style={{ filter: "drop-shadow(0 2px 2px rgba(0,0,0,0.4))" }}>{body}</svg>;
 }
@@ -1307,12 +1392,13 @@ function PackArt(p: { tearing: boolean; packId: PackId; charged: boolean; disabl
   );
 }
 
-function ChaseRow(p: { packId: PackId; supers: string[] }): ReactNode {
-  const list = chaseOf(p.packId);
+function ChaseRow(p: { packId: PackId; supers: string[]; season?: SeasonId }): ReactNode {
+  const list = p.packId === "season" ? SEASON_CHASE[p.season ?? seasonOf()] : chaseOf(p.packId);
   if (list.length === 0) return null;
+  const title = p.packId === "season" ? "Season Pack · " + SEASON_THEME[p.season ?? seasonOf()].name : packOf(p.packId).name;
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, textAlign: "center" }}>★ Chase 1/1s · {PB[p.packId].name}</div>
+      <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, textAlign: "center" }}>★ Chase 1/1s · {title}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(" + Math.min(list.length, 3) + ", minmax(0, 124px))", gap: 10, justifyContent: "center" }}>
         {list.map((pl) => {
           const gone = p.supers.includes(pl.id);
@@ -1374,17 +1460,32 @@ function InspectModal(p: { card: Card; onClose: () => void; onSell: (c: Card) =>
   );
 }
 
-function DailyClock(p: { onRollover: () => void }): ReactNode {
+const FREE_COOLDOWN = 5 * 60 * 1000;
+function lastFreeAt(raw: string): number {
+  if (!raw) return 0;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n > 1e11) return n;
+  if (Number.isFinite(n) && n > 1e9) return n * 1000;
+  const t = Date.parse(raw);
+  return Number.isFinite(t) ? t : 0;
+}
+function freeReadyAt(raw: string): number {
+  const last = lastFreeAt(raw);
+  return last === 0 ? 0 : last + FREE_COOLDOWN;
+}
+function FreeClock(p: { until: number; onReady: () => void }): ReactNode {
   const [now, setNow] = useState(Date.now());
-  const day = useRef(localDay());
   useEffect(() => {
-    const t = window.setInterval(() => { setNow(Date.now()); if (localDay() !== day.current) { day.current = localDay(); p.onRollover(); } }, 1000);
+    const t = window.setInterval(() => {
+      const n = Date.now();
+      setNow(n);
+      if (n >= p.until) p.onReady();
+    }, 250);
     return () => window.clearInterval(t);
-  }, []);
-  const d = new Date(now);
-  const left = Math.max(0, new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime() - now);
+  }, [p.until, p.onReady]);
+  const left = Math.max(0, p.until - now);
   const two = (n: number): string => String(n).padStart(2, "0");
-  return <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{two(Math.floor(left / 3600000))}:{two(Math.floor((left % 3600000) / 60000))}:{two(Math.floor((left % 60000) / 1000))}</span>;
+  return <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{two(Math.floor(left / 60000))}:{two(Math.floor((left % 60000) / 1000))}</span>;
 }
 
 function SetRow(p: { def: SetDef; n: number; claimed: boolean; onClaim: () => void; hl?: boolean }): ReactNode {
@@ -1681,17 +1782,17 @@ export default function GridironLegends() {
   }, [stage, reveal, flipNow]);
 
   const opening = stage === "tearing" || (stage === "reveal" && busy);
-  const today = localDay();
-  const dailyReady = meta.daily !== today;
-  // One free pack per local day: Standard 63%, Rookie 16%, Stars 16%, Legends 5% (never POTW or Boom or Bust).
+  const freeAt = freeReadyAt(meta.daily);
+  const dailyReady = Date.now() >= freeAt;
+  // One free pack with a 5-minute cooldown: Standard 63%, Rising Stars 16%, Stars 16%, Legends 5% (never POTW, Boom or Bust, or Season).
   const claimDaily = (): void => {
     if (!dailyReady || opening || busyRef.current) return;
     unlockAudio();
     let n = Math.random() * 100, id: PackId = "standard";
     for (const [pid, w] of [["standard", 63], ["rookie", 16], ["stars", 16], ["legends", 5]] as [PackId, number][]) { n -= w; if (n < 0) { id = pid; break; } }
-    setMeta((m) => ({ ...m, daily: today, dailyN: m.dailyN + 1 }));
+    setMeta((m) => ({ ...m, daily: String(Date.now()), dailyN: m.dailyN + 1 }));
     playSound("daily", soundRef.current, true);
-    setNotice("🎁 Daily pack: " + PB[id].name + " (free)");
+    setNotice("🎁 Free pack: " + packOf(id).name + " (free)");
     startOpen(id);
   };
   const claimSet = (s: SetDef, n: number): void => {
@@ -1996,8 +2097,8 @@ export default function GridironLegends() {
   const cowboyCard = reveal && reveal.flipped && isDal(reveal) ? reveal : multi.find(isDal);
   // The Cowboys banner follows the Dallas cards actually on screen, so selling them clears it.
   const dalShown = stage === "reveal" ? (reveal && reveal.flipped && isDal(reveal) ? 1 : 0) : stage === "multi" ? multi.filter(isDal).length : 0;
-  const selected = selectedPack ? PB[selectedPack] : null;
-  const curPack = PB[readyPack?.packId ?? packId];
+  const selected = selectedPack ? packOf(selectedPack) : null;
+  const curPack = packOf(readyPack?.packId ?? packId);
   const canBuy1 = balance >= curPack.price;
   const canBuy10 = balance >= curPack.price * 10;
   const multiTotal = multi.reduce((s, c) => s + cardVal(c), 0);
@@ -2042,18 +2143,19 @@ export default function GridironLegends() {
           ) : null}
           <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(125,255,176,0.35)", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>🎁 Daily free pack</div>
-              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>{dailyReady ? "Ready: one free pack today (Standard, Rookie, Stars or Legends; mostly Standard)." : "Claimed today."} Resets in <DailyClock onRollover={() => setDayTick((n) => n + 1)} /> · {meta.dailyN} claimed so far</div>
+              <div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>🎁 Free pack</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>{dailyReady ? "Ready: one free pack (Standard, Rising Stars, Stars or Legends; mostly Standard). After you open it, the next one is ready in 5:00." : <>Next free pack in <FreeClock until={freeAt} onReady={() => setDayTick((n) => n + 1)} />.</>} · {meta.dailyN} claimed so far</div>
             </div>
-            <Button label={dailyReady ? "Claim today's pack" : "Claimed ✓"} variant="primary" onClick={claimDaily} disabled={!dailyReady || opening} />
+            <Button label={dailyReady ? "Claim free pack" : "On cooldown"} variant="primary" onClick={claimDaily} disabled={!dailyReady || opening} />
           </div>
           {balance < MIN_PRICE && collection.length === 0 ? <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><span style={{ fontSize: 13 }}>You can't afford a pack and have no cards to sell.</span><Button label={"Get " + money(BAILOUT) + " bailout"} variant="primary" onClick={bailout} /></div> : null}
+          {(() => { const nx = nextSeasonChange(); return <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.22)", border: "1px solid " + SEASON_THEME[seasonOf()].trim, fontSize: 13, lineHeight: 1.4 }}><div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>🎟 Season pack · {SEASON_THEME[seasonOf()].name}</div><div style={{ opacity: 0.85, marginTop: 3 }}>Active now ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nx.id].name} on {formatLongDate(nx.at)}. Pulled Season cards stay in your collection after it switches, and only this season's 3 ★ chase 1/1s can be pulled until then.</div></div>; })()}
           <div className="gl-grid3" style={{ marginTop: 16 }}>
             {PACKS.map((pack) => (
               <div key={pack.id} style={{ minWidth: 0 }}>
                 <button type="button" className={"gl-tile" + (selectedPack === pack.id ? " gl-sel" : "")} onClick={() => pickPack(pack.id)}>
                   <PackThumb pack={pack} />
-                  <div className="gl-tile-name">{pack.name}</div>
+                  <div className="gl-tile-name">{pack.id === "season" ? "Season Pack · " + SEASON_THEME[seasonOf()].name : pack.name}</div>
                   <div className="gl-blurb">{pack.blurb}</div>
                   <div style={{ fontSize: 15, fontWeight: 800, marginTop: 6, color: "#ffe27a" }}>{money(pack.price)} <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.75 }}>per pack</span></div>
                 </button>
@@ -2067,7 +2169,7 @@ export default function GridironLegends() {
               <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>{selected.blurb} 1 card · {selected.hint} · {money(selected.price)} per pack (10 packs {money(selected.price * 10)}).</div>
               <div style={{ marginTop: 10, fontSize: 13 }}>{readyPack && readyPack.packId === selected.id ? "Your " + selected.name + " is ready below — tap the sealed pack to open it." : "Tap the tile to get a pack, then rip it below."}</div>
               <ChaseRow packId={selected.id} supers={heldSupers} />
-              {selected.id === "boom" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>A 1/1 here can be any of the {CHASE_IDS.size} ★ chase 1/1s (see the Chase Cards tab).</div> : null}
+              {selected.id === "boom" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>A 1/1 here can be any of the {HOME_CHASE_IDS.size} ★ home chase 1/1s (see the Chase Cards tab). Seasonal chase cards are only in the Season pack.</div> : selected.id === "season" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>Active season: {SEASON_THEME[seasonOf()].name} ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nextSeasonChange().id].name} on {formatLongDate(nextSeasonChange().at)}. Only this season's 3 ★ chase 1/1s can be pulled now.</div> : null}
             </div>
           ) : <div style={{ marginTop: 12, fontSize: 13, opacity: 0.8 }}>Tap a pack to select it.</div>}
           {oddsPack ? (
@@ -2080,7 +2182,7 @@ export default function GridironLegends() {
                 </div>
               ))}
               <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700 }}>Price {money(PB[oddsFocus].price)} · average card value {money(evOf(oddsFocus))} ({Math.round((evOf(oddsFocus) / PB[oddsFocus].price) * 100)}% of price)</div>
-              <div style={{ fontSize: 12, marginTop: 8, opacity: 0.75 }}>Chance per pack. The cheapest card in this pack is worth {money(Math.min(...poolOf(oddsFocus).map((p) => valueOf(p, oddsFocus === "potw" ? "silver" : "base", oddsFocus))))}{oddsFocus === "potw" ? "." : " and every 1/1 is worth at least " + money(oddsFocus === "boom" ? BOOM_FLOOR.super : 1000) + "."} Card values swing widely: most pulls are worth less than the pack, and a rare hit is worth far more. {oddsFocus === "standard" ? "The Standard pack draws from every player in the set. Player of the Week cards (green) can drop in any pack at 0.4%." : oddsFocus === "potw" ? "Silver cards come from every player in the set; Player of the Week cards come from this season's weekly award winners." : oddsFocus === "boom" ? "Boom or Bust draws from every player in the set. Base is the Bust, worth only a few coins. An Autograph or 1/1 is the Boom: every Auto is worth at least " + money(BOOM_FLOOR.auto) + " and every 1/1 at least " + money(BOOM_FLOOR.super) + ". A 1/1 here can also be one of the " + CHASE_IDS.size + " chase 1/1s. Player of the Week cards (green) drop at 0.4%." : "Each pack draws only from its own player pool, never shared with the other packs. Player of the Week cards (green) can drop in any pack at 0.4%."}</div>
+              <div style={{ fontSize: 12, marginTop: 8, opacity: 0.75 }}>Chance per pack. The cheapest card in this pack is worth {money(Math.min(...poolOf(oddsFocus).map((p) => valueOf(p, oddsFocus === "potw" ? "silver" : "base", oddsFocus))))}{oddsFocus === "potw" ? "." : " and every 1/1 is worth at least " + money(oddsFocus === "boom" ? BOOM_FLOOR.super : 1000) + "."} Card values swing widely: most pulls are worth less than the pack, and a rare hit is worth far more. {oddsFocus === "standard" ? "The Standard pack draws from every player in the set. Player of the Week cards (green) can drop in any pack at 0.4%." : oddsFocus === "potw" ? "Silver cards come from every player in the set; Player of the Week cards come from this season's weekly award winners." : oddsFocus === "boom" ? "Boom or Bust draws from every player in the set. Base is the Bust, worth only a few coins. An Autograph or 1/1 is the Boom: every Auto is worth at least " + money(BOOM_FLOOR.auto) + " and every 1/1 at least " + money(BOOM_FLOOR.super) + ". A 1/1 here can also be one of the " + CHASE_IDS.size + " chase 1/1s. Player of the Week cards (green) drop at 0.4%." : oddsFocus === "season" ? "The Season pack draws from this season's themed player list. Its three ★ chase 1/1s are unique to this season and cannot be pulled after the season changes (cards you already pulled stay in your binder). Player of the Week cards (green) can drop at 0.4%." : "Each pack draws only from its own player pool, never shared with the other packs. Player of the Week cards (green) can drop in any pack at 0.4%."}</div>
             </div>
           ) : null}
         </div>
@@ -2237,22 +2339,25 @@ export default function GridironLegends() {
               </div>
             ) : null}
           </>
-        ) : <Text>Open a pack in the Store to start your binder. The Rookie, Stars, and Legends packs never share a player.</Text>}
+        ) : <Text>Open a pack in the Store to start your binder. The Rising Stars, Stars, and Legends packs never share a player.</Text>}
       </Section>
       ) : null}
       {tab === "chase" ? (
       <Section heading="Chase Cards">
-        <Text>Every home pack (and the Boom or Bust pack) hides named ★ chase 1/1s. Only one copy of each will ever exist: once you pull it, it is gone from the pack and shows as Pulled here, and it stays in your binder (or you can sell it).</Text>
+        <Text>Every home pack (and the Boom or Bust pack) hides named ★ chase 1/1s. The Season pack has three of its own, unique to the active season and different from every other season. Only the current season's three can be pulled; once you pull one it is gone from the pack, shows as Pulled here, and stays in your binder after the season changes (or you can sell it).</Text>
         <Metrics metrics={[
-          { value: heldSupers.filter((id) => CHASE_IDS.has(id)).length + "/" + CHASE_IDS.size, label: "Chase 1/1s owned", detail: "Across Rookie, Stars and Legends" },
+          { value: heldSupers.filter((id) => HOME_CHASE_IDS.has(id)).length + "/" + HOME_CHASE_IDS.size, label: "Home chase 1/1s", detail: "Rising Stars, Stars and Legends" },
+          { value: heldSupers.filter((id) => SEASON_CHASE[seasonOf()].some((p) => p.id === id)).length + "/3", label: "This season", detail: SEASON_THEME[seasonOf()].name + " chase 1/1s" },
           { value: Math.round(CHASE_SHARE * 100) + "%", label: "Chase share of a 1/1", detail: "Of the rare 1/1 slot in each pack" },
         ]} />
+        <ChaseRow packId="season" supers={heldSupers} />
         {HOME.filter((h) => chaseOf(h).length > 0).map((h) => <ChaseRow key={h} packId={h} supers={heldSupers} />)}
+        {SEASON_IDS.filter((id) => id !== seasonOf() && SEASON_CHASE[id].some((pl) => heldSupers.includes(pl.id))).map((id) => <ChaseRow key={id} packId="season" season={id} supers={heldSupers} />)}
       </Section>
       ) : null}
       {tab === "sets" ? (
       <Section heading="Sets">
-        <Text>Collect every player in a set. Any card of a player counts, except the Players of the Week set (needs the POTW card) and the Chase set (needs the 1/1). Each team has one set that needs every player on that team from any pack (Rookie, Stars or Legends), and its reward adds up 35% of each player's pack price. Finishing a set lets you claim its coin reward once; selling cards can lower your count, but a claimed set keeps its badge.</Text>
+        <Text>Collect every player in a set. Any card of a player counts, except the Players of the Week set (needs the POTW card) and the chase sets (need the 1/1). Each team has one set that needs every player on that team from any pack (Rising Stars, Stars or Legends), and its reward adds up 35% of each player's pack price. Each season also has a 3-card chase set. Finishing a set lets you claim its coin reward once; selling cards can lower your count, but a claimed set keeps its badge.</Text>
         <Metrics metrics={[
           { value: SETS.filter((s) => meta.sets.includes(s.id)).length + "/" + SETS.length, label: "Sets completed", detail: "Rewards claimed once" },
           { value: String(SETS.filter((s) => !meta.sets.includes(s.id) && (setProg[s.id] ?? 0) >= s.players.length).length), label: "Ready to claim", detail: "Tap Claim below" },
@@ -2298,4 +2403,4 @@ export default function GridironLegends() {
     </Page>
   );
 }
-export { encodeBackup, decodeBackup, loadSave, compactOf, defaultSave, PLAYERS, PBYID };
+export { encodeBackup, decodeBackup, loadSave, compactOf, defaultSave, PLAYERS, PBYID, evOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION };
