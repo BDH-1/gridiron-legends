@@ -1,4 +1,4 @@
-const CACHE = "gl-2026-v3.6-fixes";
+const CACHE = "gl-2026-v3.7";
 const PRECACHE = ["./", "./index.html", "./app.js", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-180.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {

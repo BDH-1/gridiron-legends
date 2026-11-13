@@ -16,7 +16,7 @@ interface Meta { daily: string; dailyN: number; sets: string[]; ach: string[] }
 interface Save { v: 2; collection: Card[]; openedCounts: Record<PackId, number>; soundOn: boolean; cardSeq: number; readyPack: { packId: PackId } | null; balance: number; pulls: Record<string, number>; supers: string[]; locked: boolean; meta: Meta }
 
 const SET = "Gridiron Legends";
-const VERSION = "3.6"; // bump by 0.1 with each change
+const VERSION = "3.7"; // bump by 0.1 with each change
 const YEAR = "2026";
 const HOME: HomeId[] = ["rookie", "stars", "legends"];
 const SEASON_IDS: SeasonId[] = ["superbowl", "rookies", "halloween", "thanksgiving", "christmas"];
