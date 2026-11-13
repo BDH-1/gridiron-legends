@@ -1,4 +1,4 @@
-import { evOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, valueOf, PLAYERS, POTW_PLAYERS } from "../src/game";
+import { evOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, valueOf, PLAYERS, POTW_PLAYERS, FREE_TENTHS, RARITIES } from "../src/game";
 
 const money = (n: number) => Math.round(n * 10) / 10;
 const span = (vals: number[]): string => {
@@ -14,8 +14,15 @@ console.log("--- ev by pack ---");
 for (const id of PIDS) {
   const pack = packOf(id);
   const ev = evOf(id);
-  console.log(id, pack.name, "price", pack.price, "ev", money(ev), "ratio", Math.round((ev / pack.price) * 100) + "%");
+  const ratio = pack.price > 0 ? Math.round((ev / pack.price) * 100) + "%" : "free";
+  console.log(id, pack.name, "price", pack.price, "ev", money(ev), "ratio", ratio);
 }
+
+console.log("--- Free Pack odds (tenths of a percent → percent) ---");
+for (const r of RARITIES) {
+  if (FREE_TENTHS[r.id] > 0) console.log(" ", r.name, (FREE_TENTHS[r.id] / 10) + "%");
+}
+console.log("free ev (average pull)", money(evOf("free")));
 
 console.log("--- insert values (kings/walls/phenom) ---");
 for (const r of ["kings", "walls", "phenom"] as const) {
