@@ -32,9 +32,11 @@ export function Page(p: { title?: string; width?: string; children?: ReactNode }
     <main
       style={{
         maxWidth: p.width === "column" ? 760 : 1100,
+        width: "100%",
         margin: "0 auto",
         minHeight: "100dvh",
         boxSizing: "border-box",
+        overflowX: "hidden",
         /* Top safe-area is applied on #root so this is regular inset only (avoids double padding). */
         padding: "16px max(14px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px))",
         color: theme.text.primary,

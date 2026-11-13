@@ -59,11 +59,11 @@ const BOOM_TENTHS: Partial<Record<RarityId, number>> = { base: 800, auto: 130, p
 // Boom or Bust value floors: the cheapest Auto, 1/1 and POTW in this pack.
 const BOOM_FLOOR = { potw: 100, auto: 300, super: 540 };
 const RARITIES: Rarity[] = ([
-  ["base", "Base", "Base", 526, 534, 230, 684, 0, "#c8c2b4", "#2a2a28", "transparent", "linear-gradient(180deg, #fbf8f1, #e7e1d4)"],
+  ["base", "Base", "Base", 516, 526, 226, 666, 0, "#c8c2b4", "#2a2a28", "transparent", "linear-gradient(180deg, #fbf8f1, #e7e1d4)"],
   ["silver", "Silver Parallel", "Silver", 240, 240, 300, 150, 700, "#b8c0c8", "#1c242c", "rgba(192,206,220,0.85)", "linear-gradient(180deg, #f4f7fb, #d5dce6)"],
-  ["kings", "Gridiron Kings", "Kings", 6, 6, 8, 4, 0, "#9a63ff", "#f3e9ff", "rgba(160,110,255,0.95)", "linear-gradient(180deg, #f1e6ff, #cdb0ff)"],
-  ["walls", "Defensive Walls", "Walls", 6, 6, 8, 4, 0, "#27b6d6", "#06222b", "rgba(40,190,225,0.9)", "linear-gradient(180deg, #e2f9ff, #a9e4f2)"],
-  ["phenom", "Rookie Phenoms", "Phenom", 8, 0, 0, 4, 0, "#ff7a2f", "#2e1204", "rgba(255,130,50,0.95)", "linear-gradient(180deg, #fff0e2, #ffc79f)"],
+  ["kings", "Gridiron Kings", "Kings", 10, 10, 10, 10, 0, "#9a63ff", "#f3e9ff", "rgba(160,110,255,0.95)", "linear-gradient(180deg, #f1e6ff, #cdb0ff)"],
+  ["walls", "Defensive Walls", "Walls", 10, 10, 10, 10, 0, "#27b6d6", "#06222b", "rgba(40,190,225,0.9)", "linear-gradient(180deg, #e2f9ff, #a9e4f2)"],
+  ["phenom", "Rookie Phenoms", "Phenom", 10, 0, 0, 10, 0, "#ff7a2f", "#2e1204", "rgba(255,130,50,0.95)", "linear-gradient(180deg, #fff0e2, #ffc79f)"],
   ["gold", "Gold", "Gold", 140, 140, 250, 135, 0, "#e0b23a", "#3a2a08", "rgba(240,196,64,0.95)", "linear-gradient(180deg, #fff6d0, #f0d37a)"],
   ["potw", "Player of the Week", "POTW", 4, 4, 4, 4, 300, "#1fd37a", "#04281a", "rgba(40,235,130,0.95)", "linear-gradient(180deg, #eafff3, #b6f2d0)"],
   ["auto", "Autograph", "Auto", 55, 55, 150, 14, 0, "#6ee0c4", "#083028", "rgba(80,230,190,0.95)", "linear-gradient(180deg, #f3fff9, #d9f3ea)"],
@@ -225,12 +225,19 @@ const baseValue = (p: Player, r: RarityId, via: PackId = p.packId): number => {
   return (k === 1 ? raw : Math.round(V_MIN[r] + (raw - V_MIN[r]) * k)) + PACK_OFF[via];
 };
 // Gold and Auto floors per pack: a lift added to every card of that rarity so the cheapest one equals the floor (about 1.5-2x the pack price for Gold, 3-4x for Auto); hype spread above it is kept and 1/1s are untouched.
-const RARITY_FLOOR: Record<PackId, Partial<Record<RarityId, number>>> = { standard: { kings: 14, walls: 14, phenom: 14, gold: 25, potw: 38, auto: 55 }, rookie: { kings: 60, walls: 60, phenom: 60, gold: 223, potw: 338, auto: 512 }, stars: { kings: 80, walls: 80, phenom: 80, gold: 112, potw: 170, auto: 270 }, legends: { kings: 150, walls: 150, phenom: 150, gold: 300, potw: 425, auto: 600 }, season: { kings: 80, walls: 80, gold: 120, potw: 180, auto: 290 }, potw: { potw: 80 }, boom: BOOM_FLOOR };
+const RARITY_FLOOR: Record<PackId, Partial<Record<RarityId, number>>> = { standard: { kings: 190, walls: 190, phenom: 190, gold: 25, potw: 38, auto: 55 }, rookie: { kings: 190, walls: 190, phenom: 190, gold: 223, potw: 338, auto: 512 }, stars: { kings: 190, walls: 190, phenom: 190, gold: 112, potw: 170, auto: 270 }, legends: { kings: 190, walls: 190, phenom: 190, gold: 300, potw: 425, auto: 600 }, season: { kings: 190, walls: 190, gold: 120, potw: 180, auto: 290 }, potw: { potw: 80 }, boom: BOOM_FLOOR };
+const isInsert = (r: RarityId): boolean => r === "kings" || r === "walls" || r === "phenom";
 const RARITY_LIFT = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(Object.entries(RARITY_FLOOR[id]).map(([r, f]) => [r, (f as number) - Math.min(...rpool(id, r as RarityId, true).map((p) => baseValue(p, r as RarityId, id)))]))])) as Record<PackId, Record<string, number>>;
 const preValue = (p: Player, r: RarityId, via: PackId = p.packId): number => baseValue(p, r, via) + (RARITY_LIFT[via][r] ?? 0);
 // Per-card variation: a stable hash of player id + rarity adds 0 to 30% of the pack's cheapest value for that rarity, so cards of one rarity differ but never drop below the floor (and never change between renders or saves).
 const FLOOR_V = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(RARITIES.filter((r) => r.tenths[id] > 0 || (RARITY_FLOOR[id][r.id] ?? 0) > 0).map((r) => [r.id, Math.min(...(rpool(id, r.id, true).length ? rpool(id, r.id, true) : poolOf(id)).map((p) => preValue(p, r.id, id)))]))])) as Record<PackId, Record<string, number>>;
-const valueOf = (p: Player, r: RarityId, via: PackId = p.packId): number => preValue(p, r, via) + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 0.3 * (FLOOR_V[via][r] ?? 0));
+const valueOf = (p: Player, r: RarityId, via: PackId = p.packId): number => {
+  // Gridiron Kings, Defensive Walls and Rookie Phenoms sell in a tight band around 200, the same in every pack they drop in.
+  if (isInsert(r)) return 190 + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 20);
+  const n = preValue(p, r, via) + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 0.3 * (FLOOR_V[via][r] ?? 0));
+  // Player of the Week cards pay about 1.75x their previous sell value, in every pack they can drop in.
+  return r === "potw" ? Math.round(n * 1.75) : n;
+};
 const cardVal = (c: Card): number => valueOf(playerOf(c.playerId), c.rarity, c.packId);
 const money = (n: number): string => "🪙 " + Math.round(n).toLocaleString("en-US");
 function evOf(id: PackId): number {
@@ -385,6 +392,7 @@ function drawCard(packId: PackId, takenSuper: Set<string>): Card {
   if (rarity === "potw") pool = POTW_PLAYERS;
   else if (INSERT_POOL[rarity]) { pool = rpool(packId, rarity); if (pool.length === 0) { rarity = "base"; pool = all; } }
   if (rarity === "super") {
+    // Owned chase 1/1s stay out of the pool. If every chase for this pack is already owned, fall back to a regular 1/1 (or Auto if none remain).
     const chase = chaseDraw(packId).filter((p) => !takenSuper.has(p.id));
     const reg = all.filter((p) => !takenSuper.has(p.id) && !CHASE_IDS.has(p.id));
     if (chase.length > 0 && (reg.length === 0 || Math.random() < CHASE_SHARE)) pool = chase;
@@ -412,6 +420,41 @@ function loadMeta(raw: unknown): Meta {
 }
 const isPack = (v: unknown): v is PackId => v === "rookie" || v === "stars" || v === "legends" || v === "standard" || v === "potw" || v === "boom" || v === "season";
 const isRarity = (v: unknown): v is RarityId => typeof v === "string" && v in RB;
+const normKey = (v: string): string => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+function parsePackFilter(v: unknown): PackId | "ALL" {
+  if (typeof v !== "string" || !v.trim()) return "ALL";
+  const k = normKey(v);
+  if (k === "all" || k === "allpacks") return "ALL";
+  const aliases: Record<string, PackId> = {
+    rookie: "rookie", rookiepack: "rookie", risingstars: "rookie", risingstarspack: "rookie", risingstar: "rookie",
+    stars: "stars", starspack: "stars",
+    legends: "legends", legendspack: "legends",
+    standard: "standard", standardpack: "standard",
+    season: "season", seasonpack: "season",
+    potw: "potw", playeroftheweek: "potw", playeroftheweekpack: "potw",
+    boom: "boom", boomorbust: "boom", boomorbustpack: "boom", bust: "boom",
+  };
+  return aliases[k] ?? (isPack(v) ? v : "ALL");
+}
+function parseTeamFilter(v: unknown): string {
+  if (typeof v !== "string" || !v.trim()) return "ALL";
+  const k = normKey(v);
+  if (k === "all" || k === "allteams") return "ALL";
+  return TEAMS.some((t) => t.abbr === v) ? v : "ALL";
+}
+function parseRarityFilter(v: unknown): string {
+  if (typeof v !== "string" || !v.trim()) return "ALL";
+  const k = normKey(v);
+  if (k === "all" || k === "allrarities") return "ALL";
+  return isRarity(v) ? v : "ALL";
+}
+function asPackId(v: unknown, fallback?: PackId): PackId | null {
+  if (typeof v === "string") {
+    const p = parsePackFilter(v);
+    if (p !== "ALL") return p;
+  }
+  return fallback && isPack(fallback) ? fallback : null;
+}
 const defaultSave = (): Save => ({ v: 2, collection: [], openedCounts: zeroCounts(), soundOn: true, cardSeq: 0, readyPack: null, balance: START_BAL, pulls: {}, supers: [], locked: true, meta: defaultMeta() });
 function saveScore(s: Save): number {
   let packs = 0, pullN = 0;
@@ -438,8 +481,10 @@ function loadSave(override?: string): Save {
     const collection: Card[] = [];
     if (Array.isArray(row.collection)) {
       for (const it of row.collection as Record<string, unknown>[]) {
-        if (!it || typeof it.uid !== "string" || typeof it.playerId !== "string" || !PBYID[it.playerId] || !isRarity(it.rarity) || !isPack(it.packId)) continue;
-        collection.push({ uid: it.uid, playerId: it.playerId, rarity: it.rarity, packId: it.packId, seq: typeof it.seq === "number" ? it.seq : collection.length + 1 });
+        if (!it || typeof it.uid !== "string" || typeof it.playerId !== "string" || !PBYID[it.playerId] || !isRarity(it.rarity)) continue;
+        const packId = asPackId(it.packId, PBYID[it.playerId]?.packId === "season" ? "season" : PBYID[it.playerId]?.packId);
+        if (!packId) continue;
+        collection.push({ uid: it.uid, playerId: it.playerId, rarity: it.rarity, packId, seq: typeof it.seq === "number" ? it.seq : collection.length + 1 });
       }
     }
     const oc = zeroCounts();
@@ -882,10 +927,14 @@ function Rise(p: { seed: string; count: number }): ReactNode {
 }
 
 const ring = (key: string, size: number, border: string, anim: string, d: string, delay = 0): ReactNode => (
-  <div key={key} style={{ ...ABS, left: "50%", top: "46%", width: size, height: size, borderRadius: "50%", border, animation: anim + " " + d + " ease-out forwards", animationDelay: delay + "s" }} />
+  <div key={key} style={{ ...ABS, left: "50%", top: "46%", width: 0, height: 0, overflow: "visible" }}>
+    <div style={{ position: "absolute", left: 0, top: 0, width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, borderRadius: "50%", border, animation: anim + " " + d + " ease-out forwards", animationDelay: delay + "s" }} />
+  </div>
 );
 const disc = (size: number, bg: string, anim: string): ReactNode => (
-  <div style={{ ...ABS, left: "50%", top: "46%", width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, borderRadius: "50%", background: bg, animation: anim }} />
+  <div style={{ ...ABS, left: "50%", top: "46%", width: 0, height: 0, overflow: "visible" }}>
+    <div style={{ position: "absolute", left: 0, top: 0, width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, borderRadius: "50%", background: bg, animation: anim }} />
+  </div>
 );
 
 const WASH: Record<RarityId, string> = {
@@ -925,11 +974,14 @@ function burstFx(r: RarityId, seed: string): ReactNode {
   );
 }
 
+const FX_CLIP: CSSProperties = { position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", clipPath: "inset(0)", contain: "paint" };
+const FX_FIXED: CSSProperties = { position: "fixed", inset: 0, zIndex: 90, pointerEvents: "none", overflow: "hidden", clipPath: "inset(0)", contain: "paint", width: "100%", maxWidth: "100vw", boxSizing: "border-box" };
+
 function Backdrop(p: { r: RarityId; charged: boolean; burst: boolean; token: number }): ReactNode {
   const ry = RAYS[p.r];
   const seed = String(p.token) + p.r;
   return (
-    <div style={{ ...ABS, inset: 0, zIndex: 0 }}>
+    <div style={{ ...FX_CLIP, zIndex: 0, borderRadius: 18 }}>
       <div style={{ ...ABS, inset: 0, borderRadius: 18, background: WASH[p.r], animation: "glWashIn " + sp("0.4s", "0.25s") + " ease both" }} />
       {ry ? <div style={{ ...ABS, left: "50%", top: "46%", width: ry[2], height: ry[2], marginLeft: -ry[2] / 2, marginTop: -ry[2] / 2, borderRadius: "50%", background: "repeating-conic-gradient(from 0deg, " + ry[0] + ")", animation: "glSpinRays " + sp(ry[1], "10s") + " linear infinite, glRayPulse " + sp("1.4s", "2.4s") + " ease-in-out infinite", mixBlendMode: "screen", opacity: ry[3] }} /> : null}
       {p.charged ? <>{disc(p.r === "super" ? 280 : 220, p.r === "super" ? "radial-gradient(circle, rgba(255,255,255,0.55), rgba(200,80,255,0.45) 40%, transparent 70%)" : "radial-gradient(circle, rgba(255,240,180,0.45), transparent 70%)", "glCardCharge " + sp("0.55s", "0.8s") + " ease-in-out infinite")}{p.r === "super" ? <Rise seed={seed + "c"} count={14} /> : null}</> : null}
@@ -965,7 +1017,7 @@ function TeamFx(p: { team: Team; rarity: RarityId; token: number }): ReactNode {
   const word = lum(ink) > 0.35 ? ink : "#ffffff";
   const stroke = lum(edge) < 0.55 ? edge : "#101418";
   const wrap = (kids: ReactNode): ReactNode => (
-    <div aria-hidden="true" data-gl-team={t.abbr} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 89, pointerEvents: "none", overflow: "hidden", willChange: "opacity" }}>{kids}</div>
+    <div aria-hidden="true" data-gl-team={t.abbr} style={{ ...FX_FIXED, zIndex: 89, willChange: "opacity" }}>{kids}</div>
   );
   const wash = <div style={{ ...fill, background: "radial-gradient(circle at 50% 46%, " + hexA(t.secondary, 0.42) + ", " + hexA(t.primary, 0.38) + " 55%, " + hexA(t.primary, 0) + " 82%)", animation: (calm ? "glTeamSoft " : "glTeamFlash ") + dur + "s ease-out forwards" }} />;
   if (calm) {
@@ -1012,7 +1064,7 @@ function ScreenFx(p: { r: RarityId; token: number; dal: boolean; boom?: boolean;
   const anim = (calm ? "glScreenSoft " : "glScreenFlash ") + t.dur + "s ease-out forwards";
   const fill: CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 };
   return (
-    <div key={p.token} aria-hidden="true" data-gl-screenfx={p.r} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 90, pointerEvents: "none", overflow: "hidden", willChange: "opacity" }}>
+    <div key={p.token} aria-hidden="true" data-gl-screenfx={p.r} style={{ ...FX_FIXED, willChange: "opacity" }}>
       <div style={{ ...fill, background: p.bust ? "radial-gradient(circle at 50% 50%, rgba(150,150,158,0.62), rgba(60,16,22,0.62) 70%, rgba(20,4,8,0.7) 100%)" : t.bg, boxShadow: "inset " + (p.bust ? "0 0 90px 30px rgba(70,0,12,0.75)" : t.spread + " " + t.edge), animation: anim }} />
       {p.bust ? <div style={{ position: "absolute", left: "50%", top: "45%", transform: "translate(-50%,-50%)", fontSize: calm ? "min(16vmin, 90px)" : "min(30vmin, 190px)", fontWeight: 900, fontStyle: "italic", letterSpacing: 4, lineHeight: 1, color: "#d9d9de", textShadow: "0 4px 0 #3a0a10, 0 0 24px rgba(0,0,0,0.6)", animation: (calm ? "glScreenSoft 1.2s" : "glDeflate 1.3s") + " ease-out forwards" }}>BUST</div> : null}
       {ry && !calm ? <div style={{ position: "absolute", left: "50%", top: "45%", width: "150vmax", height: "150vmax", marginLeft: "-75vmax", marginTop: "-75vmax", borderRadius: "50%", background: "repeating-conic-gradient(from 0deg, " + ry[0] + ")", animation: "glSpinRays " + ry[1] + " linear infinite, glScreenRays " + t.dur + "s ease-out forwards" }} /> : null}
@@ -1090,6 +1142,9 @@ const CSS = `
 @keyframes glHi{0%{box-shadow:0 0 0 0 rgba(255,226,122,0)}22%{box-shadow:0 0 0 4px rgba(255,226,122,.95),0 0 26px 8px rgba(255,226,122,.7)}100%{box-shadow:0 0 0 0 rgba(255,226,122,0)}}
 .gl-hi{animation:glHi 1.5s ease-out 1}
 @media (prefers-reduced-motion:reduce){.gl-hi{animation:none;outline:3px solid #ffe27a;outline-offset:2px}}
+html,body,#root{overflow-x:hidden;max-width:100%}
+.gl-rip{position:relative;max-width:min(520px,100%);width:100%;margin:0 auto;overflow:hidden;box-sizing:border-box}
+.gl-reveal{position:relative;overflow:hidden;max-width:100%;box-sizing:border-box;clip-path:inset(0)}
 @media (max-width:560px){.gl-grid3{gap:8px}.gl-store-title{font-size:24px}.gl-tile{padding:7px 5px 9px}.gl-tile-name{font-size:11px}.gl-blurb{font-size:10px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}}
 .gl-tabs{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:8px;border-radius:16px;background:radial-gradient(120% 140% at 50% -40%,rgba(70,225,205,0.28),rgba(70,225,205,0) 65%),linear-gradient(180deg,#0b2447 0%,#07303a 100%)}
 .gl-tabs::-webkit-scrollbar{display:none}
@@ -1314,7 +1369,7 @@ function FlipCard(p: { card: RCard; onFlip?: () => void; charged?: boolean; burs
         </div>
       </div>
       {p.burst && flipped ? (
-        <div style={{ ...ABS, inset: 0 }}>
+        <div style={{ ...FX_CLIP, borderRadius: 12 }}>
           {r === "base" ? <>{ring("r", 110, "3px solid rgba(255,255,255,0.85)", "glRipple", sp("0.8s", "0.45s"))}<Burst kind="puff" seed={p.card.uid} count={8} /></> : <Burst kind="spark" seed={p.card.uid} count={r === "super" ? 16 : r === "auto" || r === "potw" ? 14 : r === "gold" ? 12 : 10} colors={r === "silver" ? SILVER : r === "gold" ? GOLDP : r === "potw" ? POTWP : undefined} />}
           {p.card.packId === "boom" && (r === "auto" || r === "super") ? <>{ring("bm", 170, "6px solid rgba(255,90,30,0.95)", "glBurstRing", sp("1s", "0.55s"))}<Burst kind="spark" seed={p.card.uid + "b"} count={28} colors={BOOMP} /></> : null}
         </div>
@@ -1325,7 +1380,7 @@ function FlipCard(p: { card: RCard; onFlip?: () => void; charged?: boolean; burs
 
 // ---- packs ----
 // Pack emblems: one inline SVG per pack, tinted to the pack's colors.
-function PackEmblem(p: { id: PackId }): ReactNode {
+function PackEmblem(p: { id: PackId | "free" }): ReactNode {
   const g = "pe-" + p.id;
   const grad = (c1: string, c2: string): ReactNode => <defs><linearGradient id={g} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={c1} /><stop offset="100%" stopColor={c2} /></linearGradient></defs>;
   const fill = "url(#" + g + ")";
@@ -1336,6 +1391,7 @@ function PackEmblem(p: { id: PackId }): ReactNode {
   else if (p.id === "stars") body = <>{grad("#fff0f3", "#ff5c7c")}<polygon points={star} fill={fill} stroke="#ffd0d8" strokeWidth="1" strokeLinejoin="round" /></>;
   else if (p.id === "legends") body = <>{grad("#fff3c0", "#f0b930")}<path d="M3 8 L7.5 12.5 L12 4.5 L16.5 12.5 L21 8 L19 19 H5 Z" fill={fill} stroke="#4a3408" strokeWidth="1.3" strokeLinejoin="round" /><rect x="5" y="19.5" width="14" height="2.4" rx="1" fill="#4a3408" /><circle cx="12" cy="4.2" r="1.4" fill="#fff3c0" stroke="#4a3408" strokeWidth="0.8" /></>;
   else if (p.id === "boom") body = <>{grad("#6e6e7c", "#0a0a0e")}<path d="M17.3 6.4 C18.4 4.9 19.4 4.6 20.6 5" fill="none" stroke="#ffd9a8" strokeWidth="1.5" strokeLinecap="round" /><polygon points="21.2,0.9 22.1,3.2 24,3.4 22.5,4.8 23,6.9 21.2,5.8 19.4,6.9 19.9,4.8 18.4,3.4 20.3,3.2" fill="#ffb000" stroke="#ff3b1f" strokeWidth="0.6" strokeLinejoin="round" /><circle cx="10.5" cy="14.2" r="8" fill={fill} stroke="#ff6a55" strokeWidth="1.3" /><rect x="13.9" y="6.4" width="4" height="3.2" rx="0.8" transform="rotate(45 15.9 8)" fill="#3a3a44" stroke="#ff6a55" strokeWidth="0.9" /><path d="M6.2 12.4 C6.7 10.8 8 9.8 9.5 9.6" fill="none" stroke="#ffffff" strokeWidth="1.3" strokeLinecap="round" opacity="0.65" /></>;
+  else if (p.id === "free") body = <>{grad("#ffe27a", "#1fd37a")}<rect x="5" y="9" width="14" height="12" rx="2" fill={fill} stroke="#fff6c8" strokeWidth="1.1" /><path d="M5 12 H19" stroke="#fff6c8" strokeWidth="1.2" /><path d="M12 9 V21" stroke="#0a4a2c" strokeWidth="1.3" /><path d="M8 9 C8 5.8 16 5.8 16 9" fill="none" stroke="#fff6c8" strokeWidth="1.3" strokeLinecap="round" /></>;
   else if (p.id === "season") {
     const sid = seasonOf();
     if (sid === "superbowl") body = <>{grad("#fff3c0", "#c9a227")}<path d="M7 4.2 H17 V9.2 C17 12.4 14.8 15 12 15.8 C9.2 15 7 12.4 7 9.2 Z" fill={fill} stroke="#fff3c0" strokeWidth="1" /><path d="M6.2 4.2 H17.8 M12 15.8 V18.6 M8 21 H16 V18.6 H8 Z" fill="#c9a227" stroke="#fff3c0" strokeWidth="1" strokeLinejoin="round" /><circle cx="12" cy="8.5" r="2" fill="#fff8dc" /></>;
@@ -1510,6 +1566,27 @@ function SetRow(p: { def: SetDef; n: number; claimed: boolean; onClaim: () => vo
 type TabId = "store" | "collection" | "achievements" | "chase" | "sets";
 const TABS: [TabId, string][] = [["store", "Store"], ["collection", "Collection"], ["achievements", "Achievements"], ["chase", "Chase Cards"], ["sets", "Sets"]];
 const TAB_KEY = "gl-legends-tab";
+const FILTER_KEY = "gl-legends-filters";
+interface BinderFilters { team: string; rarity: string; pack: string; query: string }
+const ALL_FILTERS = (): BinderFilters => ({ team: "ALL", rarity: "ALL", pack: "ALL", query: "" });
+function readFilters(): BinderFilters {
+  const parse = (raw: string | null): BinderFilters | null => {
+    if (!raw) return null;
+    try {
+      const o = JSON.parse(raw) as Record<string, unknown>;
+      return { team: parseTeamFilter(o.team), rarity: parseRarityFilter(o.rarity), pack: parsePackFilter(o.pack), query: typeof o.query === "string" ? o.query : "" };
+    } catch { return null; }
+  };
+  try { const f = parse(window.localStorage.getItem(FILTER_KEY)); if (f) return f; } catch { /* blocked */ }
+  try { const f = parse(window.sessionStorage.getItem(FILTER_KEY)); if (f) return f; } catch { /* blocked */ }
+  return ALL_FILTERS();
+}
+function writeFilters(f: BinderFilters, hideAll: boolean): void {
+  const out = hideAll ? ALL_FILTERS() : f;
+  const raw = JSON.stringify(out);
+  try { window.localStorage.setItem(FILTER_KEY, raw); } catch { /* blocked */ }
+  try { window.sessionStorage.setItem(FILTER_KEY, raw); } catch { /* blocked */ }
+}
 // A toast links to the tab and element it is about (an achievement card or a set row), found by element id.
 interface AppToast { text: string; token: number; tab: TabId; target: string }
 const isTab = (v: unknown): v is TabId => TABS.some((t) => t[0] === v);
@@ -1556,6 +1633,14 @@ export default function GridironLegends() {
     const el = Array.from(c.children).find((x) => x.getAttribute("aria-selected") === "true") as HTMLElement | undefined;
     if (el) c.scrollLeft = Math.max(0, el.offsetLeft - (c.clientWidth - el.offsetWidth) / 2);
   }, [tab]);
+  useEffect(() => {
+    try {
+      const meta = document.querySelector("meta[name='viewport']");
+      if (!meta) return;
+      const c = meta.getAttribute("content") || "width=device-width, initial-scale=1";
+      if (!/maximum-scale/.test(c)) meta.setAttribute("content", c + ", maximum-scale=1");
+    } catch { /* ignore */ }
+  }, []);
   const [locked, setLocked] = useState(boot.locked);
   const [savedAt, setSavedAt] = useState<{ t: number; manual: boolean } | null>(null);
   const [backupCode, setBackupCode] = useState("");
@@ -1576,12 +1661,12 @@ export default function GridironLegends() {
   const [cowboysHit, setCowboysHit] = useState(0);
   const [multiN, setMultiN] = useState(10);
   const [confirmReset, setConfirmReset] = useState(false);
-  const [teamFilter, setTeamFilter] = useState("ALL");
-  const [rarityFilter, setRarityFilter] = useState("ALL");
-  const [packFilter, setPackFilter] = useState("ALL");
+  const [teamFilter, setTeamFilter] = useState(() => readFilters().team);
+  const [rarityFilter, setRarityFilter] = useState(() => readFilters().rarity);
+  const [packFilter, setPackFilter] = useState(() => readFilters().pack);
   const [sortKey, setSortKey] = useState("rarity");
   const [sortAsc, setSortAsc] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => readFilters().query);
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(boot.soundOn);
   const [fx, setFx] = useState<{ token: number; rarity: RarityId; boom?: boolean; bust?: boolean } | null>(null);
@@ -1631,6 +1716,31 @@ export default function GridironLegends() {
     });
   }, [persistReady, collection, openedCounts, soundOn, readyPack, balance, pulls, supers, locked, meta]);
 
+  const filtersBooted = useRef(false);
+  useEffect(() => {
+    const pack = parsePackFilter(packFilter);
+    const team = parseTeamFilter(teamFilter);
+    const rarity = parseRarityFilter(rarityFilter);
+    if (pack !== packFilter) setPackFilter(pack);
+    if (team !== teamFilter) setTeamFilter(team);
+    if (rarity !== rarityFilter) setRarityFilter(rarity);
+    const q = query.trim().toLowerCase();
+    const any = collection.some((c) => {
+      const pl = playerOf(c.playerId);
+      return (team === "ALL" || pl.team.abbr === team) && (rarity === "ALL" || c.rarity === rarity) && (pack === "ALL" || c.packId === pack) && (!q || pl.name.toLowerCase().includes(q));
+    });
+    const hideAll = collection.length > 0 && !any;
+    if (!filtersBooted.current) {
+      filtersBooted.current = true;
+      if (hideAll) {
+        setPackFilter("ALL"); setTeamFilter("ALL"); setRarityFilter("ALL"); setQuery("");
+        writeFilters(ALL_FILTERS(), true);
+        return;
+      }
+    }
+    writeFilters({ team, rarity, pack, query }, hideAll);
+  }, [collection, packFilter, teamFilter, rarityFilter, query]);
+
   useEffect(() => {
     const flush = (): void => { if (persistReadyRef.current) writeSave(latestRef.current); };
     const onVis = (): void => { if (document.visibilityState === "hidden") flush(); };
@@ -1652,7 +1762,12 @@ export default function GridironLegends() {
 
   // Regular 1/1s stay used up forever once pulled. Chase 1/1s are only taken while one is in the collection: sell it and it goes back into the pot.
   const heldSupers = useMemo(() => collection.filter((c) => c.rarity === "super").map((c) => c.playerId), [collection]);
-  const takenSuper = useMemo(() => new Set(supers.filter((id) => !CHASE_IDS.has(id) || heldSupers.includes(id))), [supers, heldSupers]);
+  const takenSuper = useMemo(() => {
+    const s = new Set<string>();
+    for (const id of supers) if (!CHASE_IDS.has(id)) s.add(id);
+    for (const id of heldSupers) s.add(id);
+    return s;
+  }, [supers, heldSupers]);
 
   const triggerFx = useCallback((rarity: RarityId, uid?: string, boom = false, bust = false) => {
     try { playSound(bust ? "bust" : boom ? "boom" : rarity, soundRef.current); } catch { /* ignore */ }
@@ -1665,6 +1780,11 @@ export default function GridironLegends() {
       if (uid) setBurstUid((cur) => (cur === uid ? null : cur));
     }, wait);
   }, []);
+  useEffect(() => {
+    const w = window as Window & { __glForceFx?: (r: RarityId, boom?: boolean, bust?: boolean) => void };
+    w.__glForceFx = (r, boom, bust) => triggerFx(r, undefined, boom === true, bust === true);
+    return () => { delete w.__glForceFx; };
+  }, [triggerFx]);
 
   const teamSeen = useRef(new Set<string>());
   const triggerTeam = useCallback((card: Card) => {
@@ -1969,6 +2089,8 @@ export default function GridironLegends() {
     setCollection(s.collection); setOpenedCounts(s.openedCounts); setBalance(s.balance); setPulls(s.pulls); setSupers(s.supers); setSoundOn(s.soundOn); setLocked(s.locked); setMeta(s.meta); achDone.current = new Set(s.meta.ach);
     setReadyPack(null); setStage("idle"); resetView(); clearBusy(); setSelectedPack(null); setOddsPack(null); setInspectCard(null);
     setPendingRestore(null); setRestoreText(""); setBackupCode("");
+    setTeamFilter("ALL"); setRarityFilter("ALL"); setPackFilter("ALL"); setQuery("");
+    writeFilters(ALL_FILTERS(), false);
     if (!silent) setNotice("Restored " + s.collection.length + " cards and " + money(s.balance) + " from your backup.");
   };
 
@@ -2063,7 +2185,10 @@ export default function GridironLegends() {
     const q = query.trim().toLowerCase();
     const list = Array.from(map.values()).filter((e) => {
       const pl = playerOf(e.card.playerId);
-      return (teamFilter === "ALL" || pl.team.abbr === teamFilter) && (rarityFilter === "ALL" || e.card.rarity === rarityFilter) && (packFilter === "ALL" || e.card.packId === packFilter) && (!q || pl.name.toLowerCase().includes(q));
+      const pack = parsePackFilter(packFilter);
+      const team = parseTeamFilter(teamFilter);
+      const rarity = parseRarityFilter(rarityFilter);
+      return (team === "ALL" || pl.team.abbr === team) && (rarity === "ALL" || e.card.rarity === rarity) && (pack === "ALL" || e.card.packId === pack) && (!q || pl.name.toLowerCase().includes(q));
     });
     const dir = sortAsc ? 1 : -1;
     list.sort((a, b) => {
@@ -2141,16 +2266,21 @@ export default function GridironLegends() {
               This page couldn't keep a durable save in this browser, which can happen in iPhone Safari. Tap Save and copy a backup code (also on the Collection tab), then paste it into Restore the next time you open the game, or your progress may be lost when you close the page.
             </div>
           ) : null}
-          <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(125,255,176,0.35)", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>🎁 Free pack</div>
-              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>{dailyReady ? "Ready: one free pack (Standard, Rising Stars, Stars or Legends; mostly Standard). After you open it, the next one is ready in 5:00." : <>Next free pack in <FreeClock until={freeAt} onReady={() => setDayTick((n) => n + 1)} />.</>} · {meta.dailyN} claimed so far</div>
-            </div>
-            <Button label={dailyReady ? "Claim free pack" : "On cooldown"} variant="primary" onClick={claimDaily} disabled={!dailyReady || opening} />
-          </div>
           {balance < MIN_PRICE && collection.length === 0 ? <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><span style={{ fontSize: 13 }}>You can't afford a pack and have no cards to sell.</span><Button label={"Get " + money(BAILOUT) + " bailout"} variant="primary" onClick={bailout} /></div> : null}
           {(() => { const nx = nextSeasonChange(); return <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.22)", border: "1px solid " + SEASON_THEME[seasonOf()].trim, fontSize: 13, lineHeight: 1.4 }}><div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>🎟 Season pack · {SEASON_THEME[seasonOf()].name}</div><div style={{ opacity: 0.85, marginTop: 3 }}>Active now ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nx.id].name} on {formatLongDate(nx.at)}. Pulled Season cards stay in your collection after it switches, and only this season's 3 ★ chase 1/1s can be pulled until then.</div></div>; })()}
           <div className="gl-grid3" style={{ marginTop: 16 }}>
+            <div style={{ minWidth: 0 }}>
+              <button type="button" className={"gl-tile" + (dailyReady ? " gl-sel" : "")} onClick={() => { if (dailyReady && !opening) claimDaily(); }} disabled={opening} aria-label={dailyReady ? "Claim free pack" : "Free pack on cooldown"} style={{ opacity: dailyReady ? 1 : 0.82 }}>
+                <div style={{ width: 70, height: 100, borderRadius: 8, margin: "0 auto", background: "linear-gradient(165deg, #05261a 0%, #1fd37a 45%, #0a4a2c 100%)", border: "2px solid #d6ffe9", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", boxShadow: "0 4px 10px rgba(0,0,0,0.35)" }}>
+                  <div style={{ fontSize: 8, letterSpacing: 1, fontWeight: 700, opacity: 0.85 }}>{YEAR}</div>
+                  <div style={{ margin: "4px 0 3px", height: 34, display: "flex", alignItems: "center" }}><PackEmblem id="free" /></div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#ffe27a" }}>{dailyReady ? "FREE" : <FreeClock until={freeAt} onReady={() => setDayTick((n) => n + 1)} />}</div>
+                </div>
+                <div className="gl-tile-name">Free Pack</div>
+                <div className="gl-blurb">Standard, Rising Stars, Stars or Legends (mostly Standard). After you open it, the next one is ready in 5:00.{meta.dailyN ? " · " + meta.dailyN + " claimed so far" : ""}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, marginTop: 6, color: dailyReady ? "#9effc4" : "#ffe27a" }}>{dailyReady ? "FREE" : <><FreeClock until={freeAt} onReady={() => setDayTick((n) => n + 1)} /> <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.75 }}>cooldown</span></>}</div>
+              </button>
+            </div>
             {PACKS.map((pack) => (
               <div key={pack.id} style={{ minWidth: 0 }}>
                 <button type="button" className={"gl-tile" + (selectedPack === pack.id ? " gl-sel" : "")} onClick={() => pickPack(pack.id)}>
@@ -2189,7 +2319,7 @@ export default function GridironLegends() {
       </Section>
 
       <Section heading="The rip">
-        <div data-gl-stage={stage} style={{ position: "relative", maxWidth: 520, margin: "0 auto", animation: shake }}>
+        <div data-gl-stage={stage} className="gl-rip" style={{ animation: shake }}>
           {stage === "tearing" || (stage === "idle" && readyPack) ? (
             <>
               <PackArt tearing={stage === "tearing"} packId={readyPack?.packId ?? packId} charged={tearHot && stage === "tearing"} disabled={opening} short={!canBuy1} onOpen={startOpen} />
@@ -2207,7 +2337,7 @@ export default function GridironLegends() {
           ) : stage === "idle" ? <Text>Pick a pack from the Store to start a rip. Your binder is saved on this device.</Text> : null}
 
           {stage === "reveal" && reveal ? (
-            <div style={{ position: "relative", minHeight: 420, padding: "28px 8px 20px" }}>
+            <div className="gl-reveal" style={{ minHeight: 420, padding: "28px 8px 20px" }}>
               <Backdrop r={reveal.rarity} charged={chargeUid === reveal.uid} burst={!!fx} token={fx?.token ?? 1} />
               <div style={{ position: "relative", zIndex: 2, display: "flex", justifyContent: "center" }}>
                 <div style={{ width: "min(78%, 240px)" }}><FlipCard card={reveal} onFlip={flipNow} charged={chargeUid === reveal.uid} burst={burstUid === reveal.uid} /></div>
@@ -2228,7 +2358,7 @@ export default function GridironLegends() {
           ) : null}
 
           {stage === "multi" ? (
-            <div style={{ position: "relative", padding: "16px 6px 8px" }}>
+            <div className="gl-reveal" style={{ padding: "16px 6px 8px" }}>
               {multiTop ? <Backdrop r={multiTop} charged={false} burst={!!fx} token={fx?.token ?? 1} /> : null}
               <div style={{ position: "relative", zIndex: 2 }}>
                 <Text>{PB[packId].name} · {multiN} packs opened · {multi.length === 0 ? "no cards" : multi.length === 1 ? "1 card" : multi.length + " cards"} left{multiN > multi.length ? " (" + (multiN - multi.length) + " sold)" : ""}. Tap any card to enlarge and flip it.</Text>
@@ -2309,16 +2439,16 @@ export default function GridironLegends() {
         ) : null}
         {totalPulled > 0 || collection.length > 0 ? (
           <>
-            <Select label="Stats and binder pack" options={packOptions} value={packFilter} onChange={setPackFilter} />
+            <Select label="Stats and binder pack" options={packOptions} value={packOptions.some((o) => o.value === packFilter) ? packFilter : "ALL"} onChange={(v: string) => setPackFilter(parsePackFilter(v))} />
             <Text>Observed rarity rates versus what the odds predicted for {packFilter === "ALL" ? "the mix of packs you opened" : "the " + PB[packFilter as PackId].name + " packs you opened"}.</Text>
             <Table columns={["Rarity", "Expected %", "Expected count", "Pulled", "Observed %"]} rows={rateRows} align={["start", "end", "end", "end", "end"]} />
             {pieParts.length > 0 ? <Pie parts={pieParts} total={statsCards} label="Pulled rarities" /> : null}
             <Divider />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 12, alignItems: "flex-end" }}>
               <Input label="Search" value={query} onChange={setQuery} placeholder="Player name" />
-              <Select label="Team" options={[{ value: "ALL", label: "All teams" }, ...TEAMS.map((t) => ({ value: t.abbr, label: t.name }))]} value={teamFilter} onChange={setTeamFilter} />
-              <Select label="Rarity" options={[{ value: "ALL", label: "All rarities" }, ...RARITIES.map((r) => ({ value: r.id, label: r.name }))]} value={rarityFilter} onChange={setRarityFilter} />
-              <Select label="Pack" options={packOptions} value={packFilter} onChange={setPackFilter} />
+              <Select label="Team" options={[{ value: "ALL", label: "All teams" }, ...TEAMS.map((t) => ({ value: t.abbr, label: t.name }))]} value={TEAMS.some((t) => t.abbr === teamFilter) || teamFilter === "ALL" ? teamFilter : "ALL"} onChange={(v: string) => setTeamFilter(parseTeamFilter(v))} />
+              <Select label="Rarity" options={[{ value: "ALL", label: "All rarities" }, ...RARITIES.map((r) => ({ value: r.id, label: r.name }))]} value={isRarity(rarityFilter) || rarityFilter === "ALL" ? rarityFilter : "ALL"} onChange={(v: string) => setRarityFilter(parseRarityFilter(v))} />
+              <Select label="Pack" options={packOptions} value={packOptions.some((o) => o.value === packFilter) ? packFilter : "ALL"} onChange={(v: string) => setPackFilter(parsePackFilter(v))} />
               <Select label="Sort" options={[{ value: "valueHi", label: "Value: high to low" }, { value: "valueLo", label: "Value: low to high" }, { value: "rarity", label: "Rarity" }, { value: "rating", label: "Rating" }, { value: "newest", label: "Newest" }, { value: "name", label: "Name" }, { value: "team", label: "Team" }, { value: "pos", label: "Position" }, { value: "pack", label: "Pack" }, { value: "count", label: "Most duplicates" }]} value={sortKey} onChange={setSortKey} />
               <Button label={sortAsc ? "Ascending" : "Descending"} onClick={() => setSortAsc((v) => !v)} />
             </div>
@@ -2403,4 +2533,4 @@ export default function GridironLegends() {
     </Page>
   );
 }
-export { encodeBackup, decodeBackup, loadSave, compactOf, defaultSave, PLAYERS, PBYID, evOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION };
+export { encodeBackup, decodeBackup, loadSave, compactOf, defaultSave, PLAYERS, PBYID, evOf, valueOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, POTW_PLAYERS, parsePackFilter, asPackId };

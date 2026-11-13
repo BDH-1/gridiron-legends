@@ -1,6 +1,13 @@
-import { evOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION } from "../src/game";
+import { evOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, valueOf, PLAYERS, POTW_PLAYERS } from "../src/game";
 
 const money = (n: number) => Math.round(n * 10) / 10;
+const span = (vals: number[]): string => {
+  if (vals.length === 0) return "none";
+  const a = [...vals].sort((x, y) => x - y);
+  const avg = a.reduce((s, n) => s + n, 0) / a.length;
+  return "min " + money(a[0]) + " max " + money(a[a.length - 1]) + " avg " + money(avg) + " n " + a.length;
+};
+
 console.log("VERSION", VERSION);
 console.log("season", seasonOf(), "price", SEASON_PRICE);
 console.log("--- ev by pack ---");
@@ -8,6 +15,24 @@ for (const id of PIDS) {
   const pack = packOf(id);
   const ev = evOf(id);
   console.log(id, pack.name, "price", pack.price, "ev", money(ev), "ratio", Math.round((ev / pack.price) * 100) + "%");
+}
+
+console.log("--- insert values (kings/walls/phenom) ---");
+for (const r of ["kings", "walls", "phenom"] as const) {
+  const vals = PLAYERS.map((p) => valueOf(p, r));
+  console.log(r, "default pack", span(vals));
+  for (const id of PIDS) {
+    const vs = PLAYERS.map((p) => valueOf(p, r, id));
+    console.log(" ", id, span(vs));
+  }
+}
+
+console.log("--- POTW values ---");
+const swift = POTW_PLAYERS.find((p) => p.name === "D'Andre Swift") ?? PLAYERS.find((p) => p.name === "D'Andre Swift");
+for (const id of PIDS) {
+  const vs = POTW_PLAYERS.map((p) => valueOf(p, "potw", id));
+  console.log("potw via", id, span(vs));
+  if (swift) console.log("  Swift via", id, valueOf(swift, "potw", id));
 }
 
 const seen = new Set<string>();
