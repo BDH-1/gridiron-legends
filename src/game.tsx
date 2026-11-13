@@ -2011,6 +2011,7 @@ export default function GridironLegends() {
       {teamFx ? <TeamFx team={teamFx.team} rarity={teamFx.rarity} token={teamFx.token} /> : null}
       <div style={{ marginTop: -6 }}>
         <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.15, letterSpacing: 0.3, color: "#d4920a" }}>Version {VERSION}</div>
+        <button type="button" onClick={saveNow} aria-label="Don't forget to save the game. Tap to save." style={{ appearance: "none", display: "inline-block", marginTop: 8, padding: "6px 12px", borderRadius: 999, border: "1px solid rgba(255,226,122,0.55)", background: "linear-gradient(180deg, #0b2447 0%, #07303a 100%)", color: "#ffe27a", font: "inherit", fontSize: 12, fontWeight: 700, lineHeight: 1.3, cursor: "pointer", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>Don't forget to save the game 😁</button>
         <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, opacity: 0.6 }}>Fan-made simulator. Not affiliated with the NFL or any card company.</div>
       </div>
       {inspectCard ? <InspectModal card={inspectCard} onClose={() => setInspectCard(null)} onSell={(c: Card) => { sellCards([c]); setInspectCard(null); }} /> : null}
