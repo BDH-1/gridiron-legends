@@ -9,21 +9,31 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Gridiron" />
   <meta name="description" content="Gridiron Legends 2026 — a fan-made football card pack simulator you can install on your phone." />
-  <title>Gridiron Legends</title>
+  <title>Gridiron Legends 26</title>
   <link rel="manifest" href="./manifest.json" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png" />
   <style>
-    html, body { margin: 0; min-height: 100%; background: #061018; color: #eef7fb; }
+    html, body { margin: 0; min-height: 100dvh; background: #061018; color: #eef7fb; }
+    html { height: auto; }
     body {
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
       background:
         radial-gradient(120% 60% at 50% -8%, rgba(70,225,205,0.18), rgba(70,225,205,0) 62%),
         linear-gradient(180deg, #0b2447 0%, #0a3547 55%, #061018 100%);
       min-height: 100dvh;
+      min-height: -webkit-fill-available;
+      overflow: auto;
     }
-    #root { min-height: 100dvh; }
+    /* Safe area is padded on #root so content is not hidden under the status bar
+       in a standalone PWA (viewport-fit=cover + black-translucent). Do not use
+       overflow:hidden on html/body — the document should scroll normally. */
+    #root {
+      min-height: 100dvh;
+      padding-top: env(safe-area-inset-top, 0px);
+      box-sizing: border-box;
+    }
     button, input, select, textarea { font-family: inherit; }
   </style>
 </head>

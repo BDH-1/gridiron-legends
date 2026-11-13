@@ -1022,7 +1022,7 @@ const CSS = `
 .gl-hi{animation:glHi 1.5s ease-out 1}
 @media (prefers-reduced-motion:reduce){.gl-hi{animation:none;outline:3px solid #ffe27a;outline-offset:2px}}
 @media (max-width:560px){.gl-grid3{gap:8px}.gl-store-title{font-size:24px}.gl-tile{padding:7px 5px 9px}.gl-tile-name{font-size:11px}.gl-blurb{font-size:10px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}}
-.gl-tabs{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:8px;border-radius:16px;background:radial-gradient(120% 140% at 50% -40%,rgba(70,225,205,0.28),rgba(70,225,205,0) 65%),linear-gradient(180deg,#0b2447 0%,#07303a 100%)}
+.gl-tabs{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:8px;border-radius:16px;background:radial-gradient(120% 140% at 50% -40%,rgba(70,225,205,0.28),rgba(70,225,205,0) 65%),linear-gradient(180deg,#0b2447 0%,#07303a 100%)}
 .gl-tabs::-webkit-scrollbar{display:none}
 .gl-tab{flex:0 0 auto;appearance:none;-webkit-appearance:none;min-height:44px;padding:0 15px;border-radius:999px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#eef7fb;font:inherit;font-size:14px;font-weight:800;font-style:italic;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .gl-tab[aria-selected="true"]{background:linear-gradient(180deg,#ffe27a,#ffc83a);color:#2b1a02;border-color:#fff3b0;box-shadow:0 0 0 2px rgba(255,226,122,0.35)}
@@ -1353,10 +1353,18 @@ function InspectModal(p: { card: Card; onClose: () => void; onSell: (c: Card) =>
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent): void => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const html = document.documentElement, body = document.body;
+    const prevHtml = html.style.overflow, prevBody = body.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
   }, [onClose]);
   return (
-    <div role="dialog" aria-modal="true" aria-label={"Card details for " + playerOf(p.card.playerId).name} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(4,14,24,0.82)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div role="dialog" aria-modal="true" aria-label={"Card details for " + playerOf(p.card.playerId).name} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(4,14,24,0.82)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))" }}>
       <div onClick={(e: { stopPropagation: () => void }) => e.stopPropagation()} style={{ width: "min(280px, 92vw)", position: "relative" }}>
         <FlipCard card={{ ...p.card, flipped: true }} inspect />
         <div style={{ textAlign: "center", marginTop: 10, color: "#eef7fb", fontSize: 12, fontWeight: 600, fontFamily: theme.font.family }}>Tap the card to flip between the front and game ratings</div>
@@ -1433,10 +1441,13 @@ export default function GridironLegends() {
   const [, setDayTick] = useState(0);
   const [tab, setTab] = useState<TabId>(readTab);
   const tabsRef = useRef<HTMLDivElement | null>(null);
-  const pickTab = (t: TabId): void => {
+  const pickTab = (t: TabId, toTop = true): void => {
     setTab(t);
     try { window.localStorage.setItem(TAB_KEY, t); } catch { /* blocked */ }
     try { window.sessionStorage.setItem(TAB_KEY, t); } catch { /* blocked */ }
+    if (toTop) {
+      try { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } catch { /* ignore */ }
+    }
   };
   useEffect(() => {
     const c = tabsRef.current;
@@ -1925,7 +1936,7 @@ export default function GridironLegends() {
   // Tapping a toast dismisses it, switches to its tab, smooth-scrolls to the item and pulses it for about 1.5s.
   const openToast = (t: AppToast): void => {
     setToastQ((q) => q.filter((x) => x.token !== t.token));
-    pickTab(t.tab);
+    pickTab(t.tab, false);
     let tries = 0;
     const go = (): void => {
       const el = document.getElementById(t.target);
@@ -1994,7 +2005,7 @@ export default function GridironLegends() {
   const shake = fx && (fx.rarity === "super" || fx.rarity === "auto" || fx.rarity === "potw") ? (fx.rarity === "super" && !rm() ? "glBigShake 0.75s ease" : "glScreenShake 0.45s ease") : undefined;
 
   return (
-    <Page title="Gridiron Legends 2026" width="column">
+    <Page title="Gridiron Legends 26" width="column">
       <style>{CSS}</style>
       {fx ? <ScreenFx r={fx.rarity} token={fx.token} dal={cowboysHit > 0} boom={fx.boom === true} bust={fx.bust === true} /> : null}
       {teamFx ? <TeamFx team={teamFx.team} rarity={teamFx.rarity} token={teamFx.token} /> : null}

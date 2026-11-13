@@ -36,4 +36,6 @@ git commit -m "Describe the change"
 git push origin main
 ```
 
-A minute or two later, refresh [the live app](https://bdh-1.github.io/gridiron-legends/). The service worker loads `index.html` from the network first so a new version shows on the next open.
+A minute or two later, open [the live app](https://bdh-1.github.io/gridiron-legends/) again. The service worker loads `index.html` from the network first so a new version shows on the next open. If you installed it on your iPhone home screen, close the app completely (swipe it away from the app switcher) and tap the icon again.
+
+The title at the top of the game is **Gridiron Legends 26**.

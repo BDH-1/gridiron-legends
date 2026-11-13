@@ -33,11 +33,31 @@ export function Page(p: { title?: string; width?: string; children?: ReactNode }
       style={{
         maxWidth: p.width === "column" ? 760 : 1100,
         margin: "0 auto",
-        padding: "max(16px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left))",
+        minHeight: "100dvh",
+        boxSizing: "border-box",
+        /* Top safe-area is applied on #root so this is regular inset only (avoids double padding). */
+        padding: "16px max(14px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px))",
         color: theme.text.primary,
         fontFamily: theme.font.family,
       }}
     >
+      {p.title ? (
+        <h1
+          data-gl-title="1"
+          style={{
+            margin: "0 0 10px",
+            fontSize: 32,
+            fontWeight: 800,
+            fontStyle: "italic",
+            letterSpacing: 0.5,
+            lineHeight: 1.1,
+            textTransform: "uppercase",
+            color: theme.text.primary,
+          }}
+        >
+          {p.title}
+        </h1>
+      ) : null}
       {p.children}
     </main>
   );
