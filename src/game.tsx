@@ -16,7 +16,7 @@ interface Meta { daily: string; dailyN: number; sets: string[]; ach: string[] }
 interface Save { v: 2; collection: Card[]; openedCounts: Record<PackId, number>; soundOn: boolean; cardSeq: number; readyPack: { packId: PackId } | null; balance: number; pulls: Record<string, number>; supers: string[]; locked: boolean; meta: Meta }
 
 const SET = "Gridiron Legends";
-const VERSION = "3.8"; // bump by 0.1 with each change
+const VERSION = "3.9"; // bump by 0.1 with each change
 const YEAR = "2026";
 const HOME: HomeId[] = ["rookie", "stars", "legends"];
 const SEASON_IDS: SeasonId[] = ["superbowl", "rookies", "halloween", "thanksgiving", "christmas"];
@@ -59,19 +59,21 @@ const RAINBOW = "linear-gradient(120deg, #ff4d6d, #ffb000, #3dff8a, #3dc6ff, #c4
 const BOOM_TENTHS: Partial<Record<RarityId, number>> = { base: 800, auto: 130, potw: 4, super: 66 };
 // Free Pack odds in tenths of a percent: mostly Base and Silver, with small shots at inserts, Gold, POTW, Auto and 1/1. The pack can hit any card the other packs can, including this season's chases and a Boom or Bust bust.
 const FREE_TENTHS: Record<RarityId, number> = { base: 620, silver: 250, kings: 10, walls: 10, phenom: 10, gold: 70, potw: 10, auto: 15, super: 5 };
+// Season pack: Base is 34%. Other tiers are the previous Stars-identical table scaled so everything still sums to 100. The 3 seasonal chase 1/1s stay a CHASE_SHARE of the 1/1 slot.
+const SEASON_TENTHS: Record<RarityId, number> = { base: 340, silver: 334, kings: 14, walls: 14, phenom: 0, gold: 195, potw: 5, auto: 77, super: 21 };
 // Boom or Bust value floors: the cheapest Auto, 1/1 and POTW in this pack.
 const BOOM_FLOOR = { potw: 100, auto: 300, super: 540 };
 const RARITIES: Rarity[] = ([
   ["base", "Base", "Base", 516, 526, 226, 666, 0, "#c8c2b4", "#2a2a28", "transparent", "linear-gradient(180deg, #fbf8f1, #e7e1d4)"],
-  ["silver", "Silver Parallel", "Silver", 240, 240, 300, 150, 750, "#b8c0c8", "#1c242c", "rgba(192,206,220,0.85)", "linear-gradient(180deg, #f4f7fb, #d5dce6)"],
+  ["silver", "Silver Parallel", "Silver", 240, 240, 300, 150, 746, "#b8c0c8", "#1c242c", "rgba(192,206,220,0.85)", "linear-gradient(180deg, #f4f7fb, #d5dce6)"],
   ["kings", "Gridiron Kings", "Kings", 10, 10, 10, 10, 0, "#9a63ff", "#f3e9ff", "rgba(160,110,255,0.95)", "linear-gradient(180deg, #f1e6ff, #cdb0ff)"],
   ["walls", "Defensive Walls", "Walls", 10, 10, 10, 10, 0, "#27b6d6", "#06222b", "rgba(40,190,225,0.9)", "linear-gradient(180deg, #e2f9ff, #a9e4f2)"],
   ["phenom", "Rookie Phenoms", "Phenom", 10, 0, 0, 10, 0, "#ff7a2f", "#2e1204", "rgba(255,130,50,0.95)", "linear-gradient(180deg, #fff0e2, #ffc79f)"],
   ["gold", "Gold", "Gold", 140, 140, 250, 135, 0, "#e0b23a", "#3a2a08", "rgba(240,196,64,0.95)", "linear-gradient(180deg, #fff6d0, #f0d37a)"],
   ["potw", "Player of the Week", "POTW", 4, 4, 4, 4, 250, "#1fd37a", "#04281a", "rgba(40,235,130,0.95)", "linear-gradient(180deg, #eafff3, #b6f2d0)"],
   ["auto", "Autograph", "Auto", 55, 55, 150, 14, 0, "#6ee0c4", "#083028", "rgba(80,230,190,0.95)", "linear-gradient(180deg, #f3fff9, #d9f3ea)"],
-  ["super", "1/1 Superfractal", "1/1", 15, 15, 50, 1, 0, "#d46cff", "#fbeaff", "rgba(210,120,255,1)", "linear-gradient(135deg, #3b0a4a 0%, #1a1040 35%, #0d2a3a 70%, #3a0a2a 100%)"],
-] as [RarityId, string, string, number, number, number, number, number, string, string, string, string][]).map(([id, name, short, r, s, l, t, w, frame, ink, glow, bg], i) => ({ id, name, short, tenths: { rookie: r, stars: s, legends: l, standard: t, potw: w, boom: BOOM_TENTHS[id] ?? 0, season: s, free: FREE_TENTHS[id] ?? 0 }, rank: i + 1, frame, ink, glow, bg }));
+  ["super", "1/1 Superfractal", "1/1", 15, 15, 50, 1, 4, "#d46cff", "#fbeaff", "rgba(210,120,255,1)", "linear-gradient(135deg, #3b0a4a 0%, #1a1040 35%, #0d2a3a 70%, #3a0a2a 100%)"],
+] as [RarityId, string, string, number, number, number, number, number, string, string, string, string][]).map(([id, name, short, r, s, l, t, w, frame, ink, glow, bg], i) => ({ id, name, short, tenths: { rookie: r, stars: s, legends: l, standard: t, potw: w, boom: BOOM_TENTHS[id] ?? 0, season: SEASON_TENTHS[id] ?? 0, free: FREE_TENTHS[id] ?? 0 }, rank: i + 1, frame, ink, glow, bg }));
 const RB = Object.fromEntries(RARITIES.map((r) => [r.id, r])) as Record<RarityId, Rarity>;
 
 const PACKS: Pack[] = [
@@ -80,7 +82,7 @@ const PACKS: Pack[] = [
   { id: "stars", name: "Stars Pack", hint: "80+", blurb: "Today's established stars from across the league.", bg: "linear-gradient(165deg, #3a0612 0%, #e0314f 45%, #5a0a1f 100%)", trim: "#ffd0d8", thumb: "15", price: 75 },
   { id: "legends", name: "Legends Pack", hint: "88+", blurb: "Retired all-time greats, three from each team. Best odds in the set.", bg: "linear-gradient(165deg, #4a3408 0%, #f0c44a 40%, #8a5a10 100%)", trim: "#fff3c0", thumb: "88", price: 300 },
   makeSeasonPack(),
-  { id: "potw", name: "Player of the Week Pack", hint: "25% POTW", blurb: "25% green Player of the Week cards, 75% Silver from the whole set.", bg: "repeating-linear-gradient(90deg, rgba(255,255,255,0.07) 0 10px, rgba(0,0,0,0.05) 10px 20px), linear-gradient(165deg, #04301c 0%, #1fd37a 45%, #0a6b3c 100%)", trim: "#d6ffe9", thumb: "W", price: 50 },
+  { id: "potw", name: "Player of the Week Pack", hint: "25% POTW", blurb: "25% green POTW cards, Silver from the whole set, and a small shot at 3 ★ chase 1/1s.", bg: "repeating-linear-gradient(90deg, rgba(255,255,255,0.07) 0 10px, rgba(0,0,0,0.05) 10px 20px), linear-gradient(165deg, #04301c 0%, #1fd37a 45%, #0a6b3c 100%)", trim: "#d6ffe9", thumb: "W", price: 50 },
   { id: "boom", name: "Boom or Bust Pack", hint: "Boom/Bust", blurb: "All-or-nothing: four in five pulls are a Bust; one in five is a Boom — an Autograph or 1/1.", bg: "linear-gradient(115deg, #0c0c10 0%, #0c0c10 47%, #e0141e 47%, #8f0a12 100%)", trim: "#ffb3a0", thumb: "B", price: 100 },
 ];
 const FREE_BLURB = "Any card from any pack, including inserts and ★ chases. Mostly Base and Silver, with a small shot at rare stuff.";
@@ -167,29 +169,33 @@ const CHASE_NAMES: Record<HomeId, string[]> = { rookie: ["Caleb Williams", "Trav
 const CHASE: Record<HomeId, Player[]> = { rookie: [], stars: [], legends: [] };
 for (const h of HOME) CHASE[h] = PLAYERS.filter((p) => p.packId === h && CHASE_NAMES[h].includes(p.name));
 const HOME_CHASE_IDS = new Set(([] as Player[]).concat(...HOME.map((h) => CHASE[h])).map((p) => p.id));
-const CHASE_IDS = new Set(([] as string[]).concat(Array.from(HOME_CHASE_IDS), Array.from(SEASON_CHASE_IDS)));
+// POTW pack chase 1/1s: current NFL players known for big Player of the Week-style seasons, and not already a chase card in another pack.
+const POTW_CHASE_NAMES = ["Derrick Henry", "Jayden Daniels", "Puka Nacua"];
+const POTW_CHASE: Player[] = POTW_CHASE_NAMES.map((n) => PLAYERS.find((p) => p.name === n)).filter((p): p is Player => p !== undefined);
+const POTW_CHASE_IDS = new Set(POTW_CHASE.map((p) => p.id));
+const CHASE_IDS = new Set(([] as string[]).concat(Array.from(HOME_CHASE_IDS), Array.from(SEASON_CHASE_IDS), Array.from(POTW_CHASE_IDS)));
 const ALL_CHASE: Player[] = ([] as Player[]).concat(...HOME.map((h) => CHASE[h]));
-const chaseOf = (id: PackId): Player[] => (id === "season" || id === "free" ? (id === "free" ? ALL_CHASE.concat(SEASON_CHASE[seasonOf()]) : SEASON_CHASE[seasonOf()]) : (id === "standard" || id === "potw" || id === "boom" ? [] : CHASE[id]));
-// Boom or Bust (and the Free Pack) can hit a chase 1/1: Boom draws from the home chase players; the Free Pack can hit any home chase or this season's 3, at the same CHASE_SHARE.
+const chaseOf = (id: PackId): Player[] => (id === "season" ? SEASON_CHASE[seasonOf()] : id === "free" ? ALL_CHASE.concat(SEASON_CHASE[seasonOf()], POTW_CHASE) : id === "potw" ? POTW_CHASE : (id === "standard" || id === "boom" ? [] : CHASE[id]));
+// Boom or Bust (and the Free Pack) can hit a chase 1/1: Boom draws from the home chase players; the Free Pack can hit any home, POTW, or this season's chase, at the same CHASE_SHARE.
 const chaseDraw = (id: PackId): Player[] => (id === "boom" ? ALL_CHASE : chaseOf(id));
 const isChaseCard = (c: Card): boolean => c.rarity === "super" && CHASE_IDS.has(c.playerId);
 const isIns = (r: RarityId): boolean => r === "kings" || r === "walls" || r === "phenom";
 // Pull chance (percent) of a card's rarity in the pack it came from; a named chase 1/1 gets its own, smaller chance.
 const pullChance = (c: Card): number => {
-  const base = RB[c.rarity].tenths[c.packId] / 10;
-  return isChaseCard(c) ? (base * CHASE_SHARE) / Math.max(1, chaseDraw(c.packId).length) : base;
+  const id = originPack(c);
+  const base = RB[c.rarity].tenths[id] / 10;
+  return isChaseCard(c) ? (base * CHASE_SHARE) / Math.max(1, chaseDraw(id).length) : base;
 };
-const rarityPct = (c: Card): number => RB[c.rarity].tenths[c.packId] / 10;
+const rarityPct = (c: Card): number => RB[c.rarity].tenths[originPack(c)] / 10;
 // Chance (percent) of pulling this exact card from one pack: its rarity chance split over the players that can fill it.
 const exactChance = (c: Card): number => {
+  if (isChaseCard(c)) return pullChance(c);
   if (c.packId === "free") {
-    if (isChaseCard(c)) return pullChance(c);
     const pulls = c.rarity === "super" ? freeSuperPools(new Set()).reg : drawsForFree(c.rarity);
     const n = pulls.filter((x) => x.player.id === c.playerId && (!c.via || x.via === c.via)).length;
     const share = c.rarity === "super" ? (chaseDraw("free").length > 0 ? 1 - CHASE_SHARE : 1) : 1;
     return (rarityPct(c) * share * n) / Math.max(1, pulls.length);
   }
-  if (isChaseCard(c)) return pullChance(c);
   const pool = rpool(c.packId, c.rarity);
   if (c.rarity !== "super") return rarityPct(c) / pool.length;
   const reg = pool.filter((p) => !CHASE_IDS.has(p.id)).length;
@@ -246,7 +252,7 @@ const baseValue = (p: Player, r: RarityId, via: PackId = p.packId): number => {
   return (k === 1 ? raw : Math.round(V_MIN[r] + (raw - V_MIN[r]) * k)) + PACK_OFF[via];
 };
 // Gold and Auto floors per pack: a lift added to every card of that rarity so the cheapest one equals the floor (about 1.5-2x the pack price for Gold, 3-4x for Auto); hype spread above it is kept and 1/1s are untouched.
-const RARITY_FLOOR: Record<PackId, Partial<Record<RarityId, number>>> = { standard: { kings: 190, walls: 190, phenom: 190, gold: 25, potw: 38, auto: 55 }, rookie: { kings: 190, walls: 190, phenom: 190, gold: 223, potw: 338, auto: 512 }, stars: { kings: 190, walls: 190, phenom: 190, gold: 112, potw: 170, auto: 270 }, legends: { kings: 190, walls: 190, phenom: 190, gold: 300, potw: 425, auto: 600 }, season: { kings: 190, walls: 190, gold: 120, potw: 180, auto: 290 }, potw: { potw: 80 }, boom: BOOM_FLOOR, free: { kings: 190, walls: 190, phenom: 190, gold: 25, potw: 38, auto: 55 } };
+const RARITY_FLOOR: Record<PackId, Partial<Record<RarityId, number>>> = { standard: { kings: 190, walls: 190, phenom: 190, gold: 25, potw: 38, auto: 55 }, rookie: { kings: 190, walls: 190, phenom: 190, gold: 70, potw: 338, auto: 512 }, stars: { kings: 190, walls: 190, phenom: 190, gold: 70, potw: 170, auto: 270 }, legends: { kings: 190, walls: 190, phenom: 190, gold: 300, potw: 425, auto: 600 }, season: { kings: 190, walls: 190, gold: 120, potw: 180, auto: 290 }, potw: { potw: 80 }, boom: BOOM_FLOOR, free: { kings: 190, walls: 190, phenom: 190, gold: 25, potw: 38, auto: 55 } };
 const isInsert = (r: RarityId): boolean => r === "kings" || r === "walls" || r === "phenom";
 const RARITY_LIFT = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(Object.entries(RARITY_FLOOR[id]).map(([r, f]) => [r, (f as number) - Math.min(...rpool(id, r as RarityId, true).map((p) => baseValue(p, r as RarityId, id)))]))])) as Record<PackId, Record<string, number>>;
 const preValue = (p: Player, r: RarityId, via: PackId = p.packId): number => baseValue(p, r, via) + (RARITY_LIFT[via][r] ?? 0);
@@ -255,12 +261,30 @@ const FLOOR_V = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(RARI
 const valueOf = (p: Player, r: RarityId, via: PackId = p.packId): number => {
   // Gridiron Kings, Defensive Walls and Rookie Phenoms sell in a tight band around 200, the same in every pack they drop in.
   if (isInsert(r)) return 190 + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 20);
+  // Rising Stars and Stars Gold cards sell in a tight band around the 70s.
+  if (r === "gold" && (via === "rookie" || via === "stars")) {
+    const pool = rpool(via, "gold", true);
+    const list = (pool.length ? pool : valuePoolOf(via)).map((x) => ({ id: x.id, v: preValue(x, "gold", via) }));
+    list.sort((a, b) => a.v - b.v || a.id.localeCompare(b.id));
+    const i = Math.max(0, list.findIndex((x) => x.id === p.id));
+    const t = list.length <= 1 ? 0.5 : i / (list.length - 1);
+    return 70 + Math.round(t * 9);
+  }
   const n = preValue(p, r, via) + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 0.3 * (FLOOR_V[via][r] ?? 0));
   // Player of the Week cards pay about 1.75x their previous sell value, in every pack they can drop in.
   return r === "potw" ? Math.round(n * 1.75) : n;
 };
 const sourceOf = (c: Card): PackId => (c.via && c.via !== "free" ? c.via : c.packId);
+// Chase 1/1s keep their home pack's look and identity even if they were pulled from the Free Pack (packId may still be "free" on the save).
+const originPack = (c: Card): PackId => {
+  if (!isChaseCard(c)) return c.packId;
+  if (POTW_CHASE_IDS.has(c.playerId)) return "potw";
+  const p = playerOf(c.playerId);
+  return (p.packId === "season" || p.season) ? "season" : p.packId;
+};
+
 const cardVal = (c: Card): number => {
+  if (isChaseCard(c)) return valueOf(playerOf(c.playerId), c.rarity, originPack(c));
   const via = sourceOf(c);
   return valueOf(playerOf(c.playerId), c.rarity, via === "free" ? playerOf(c.playerId).packId : via);
 };
@@ -332,6 +356,7 @@ const SETS: SetDef[] = (() => {
   for (const h of HOME) { const l = PLAYERS.filter((p) => p.packId === h); out.push({ id: "roster-" + h, name: PB[h].name + " full roster", group: "master", players: ids(l), reward: Math.round(l.length * PB[h].price * 0.25) }); }
   out.push({ id: "potw", name: "Players of the Week (POTW card of each)", group: "master", players: ids(POTW_PLAYERS), need: "potw", reward: POTW_PLAYERS.length * 125 });
   out.push({ id: "chase", name: "Chase 1/1s (every home chase card)", group: "master", players: ids(chase), need: "super", reward: chase.length * 400 });
+  out.push({ id: "potw-chase", name: "POTW chase 1/1s", group: "master", players: ids(POTW_CHASE), need: "super", reward: 450 });
   for (const sid of SEASON_IDS) {
     const ch = SEASON_CHASE[sid];
     out.push({ id: "szn-chase-" + sid, name: SEASON_THEME[sid].name + " chase 1/1s", group: "master", players: ids(ch), need: "super", reward: 450 });
@@ -590,7 +615,7 @@ function loadSave(override?: string): Save {
     const sup = new Set<string>(collection.filter((c) => c.rarity === "super").map((c) => c.playerId));
     if (Array.isArray(row.supers)) { for (const s of row.supers as unknown[]) { if (typeof s === "string" && PBYID[s]) sup.add(s); } }
     const balance = typeof row.balance === "number" && row.balance >= 0 ? Math.round(row.balance) : START_BAL;
-    return { v: 2, collection, openedCounts: oc, soundOn: row.soundOn !== false, cardSeq: seq, readyPack: rp && isPack(rp.packId) ? { packId: rp.packId } : null, balance, pulls, supers: Array.from(sup), locked: row.locked !== false, meta: loadMeta(row.meta) };
+    return { v: 2, collection, openedCounts: oc, soundOn: row.soundOn !== false, cardSeq: seq, readyPack: rp && isPack(rp.packId) && rp.packId !== "free" ? { packId: rp.packId } : null, balance, pulls, supers: Array.from(sup), locked: row.locked !== false, meta: mergeFreeMeta(loadMeta(row.meta)) };
   } catch { return defaultSave(); }
 }
 // ---- persistence chain: localStorage, sessionStorage, IndexedDB, small cookie, window.name ----
@@ -690,6 +715,7 @@ function readSaved(): string | null {
 }
 /** Writes to every mechanism that works. True when at least one durable one (local, IndexedDB, cookie) took it. Pass force to allow an explicit reset to overwrite a richer save. */
 function writeSave(s: Save, force = false): boolean {
+  persistFreeAt(lastFreeAt(s.meta.daily));
   if (!force && memSave && saveScore(s) < saveScore(memSave)) return lastStores.some((x) => x === "local" || x === "idb" || x === "cookie") || idbOk;
   const ok: StoreName[] = [];
   lastErr = "";
@@ -1262,7 +1288,7 @@ const PCOL: Record<PackId, PackSkin> = {
   free: { a: "#1fd37a", b: "#05261a", ink: "#ffffff", edge: "#d6ffe9" },
 };
 const skinOf = (card: Card): PackSkin => {
-  const id = sourceOf(card);
+  const id = isChaseCard(card) ? originPack(card) : sourceOf(card);
   if (id === "season" || playerOf(card.playerId).season) {
     const sid = playerOf(card.playerId).season;
     if (sid) return SEASON_THEME[sid].skin;
@@ -1374,7 +1400,7 @@ function CardFace(p: { card: Card; compact?: boolean }): ReactNode {
         {card.rarity === "potw" ? <div style={{ flexShrink: 0, margin: c ? "0 6px 2px" : "2px 8px 5px", padding: c ? "1px 3px" : "3px 6px", borderRadius: 6, background: "linear-gradient(90deg, #0b6b3a, #1fd37a, #0b6b3a)", border: "1px solid rgba(255,255,255,0.7)", color: "#ffffff", textAlign: "center", fontWeight: 900, fontSize: c ? 6.5 : 9, letterSpacing: c ? 0.4 : 1, lineHeight: 1.1, whiteSpace: "nowrap" }}>★ PLAYER OF THE WEEK ★</div> : null}
         {card.rarity === "auto" || card.rarity === "super" ? <div style={{ flexShrink: 0, margin: c ? "0 6px 2px" : "2px 8px 5px", padding: c ? "0 3px" : "1px 6px", borderRadius: 6, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(0,0,0,0.18)" }}><Signature name={player.name} ink="#0b1f4a" compact={c} /></div> : null}
         <div style={{ ...row, fontSize: c ? 7 : 9, letterSpacing: c ? 0.2 : 0.4, padding: c ? "3px 6px 5px" : "4px 8px 6px", fontWeight: 700, position: "relative", zIndex: 2 }}>
-          <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>{c && r.name.length > 9 ? r.short : r.name}</span><span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, marginLeft: 4 }}>{card.rarity === "super" ? "1 of 1" : c ? PB[card.packId].name.replace(" Pack", "") : PB[card.packId].name}</span>
+          <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>{c && r.name.length > 9 ? r.short : r.name}</span><span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, marginLeft: 4 }}>{card.rarity === "super" ? "1 of 1" : c ? PB[originPack(card)].name.replace(" Pack", "") : PB[originPack(card)].name}</span>
         </div>
         {foil ? <div style={{ ...ABS, ...foil, inset: 0, borderRadius: 7, zIndex: 3, animation: fa[0] + " " + sp(fa[1], fa[2]) + " infinite" }} /> : null}
       </div>
@@ -1400,7 +1426,7 @@ function CardStats(p: { card: Card; compact?: boolean }): ReactNode {
         </div>
         <div style={{ fontSize: c ? 8 : 10, marginTop: c ? 4 : 6, opacity: 0.85, lineHeight: 1.35 }}>
           <div>{player.team.name}</div>
-          <div><span style={badgeStyle(card.rarity, c)}>{RB[card.rarity].short}</span> {r.name} · {PB[card.packId].name} · {overallOf(player, card.rarity)} OVR</div>
+          <div><span style={badgeStyle(card.rarity, c)}>{RB[card.rarity].short}</span> {r.name} · {PB[originPack(card)].name} · {overallOf(player, card.rarity)} OVR</div>
           <div>Value {money(cardVal(card))} · Pull chance {chanceText(card)}</div>
         </div>
         <div style={{ marginTop: c ? 6 : 8, fontSize: c ? 8 : 9, fontWeight: 800, letterSpacing: 0.7, textTransform: "uppercase" }}>Game ratings</div>
@@ -1453,7 +1479,7 @@ function FlipCard(p: { card: RCard; onFlip?: () => void; charged?: boolean; burs
     >
       <div className="gl-scene" style={{ width: "100%", height: "100%", borderRadius: 12, animation: flipped && r === "super" ? "glPulseFrame " + sp("1.15s", "2.2s") + " ease-in-out infinite" : undefined }}>
         <div className={"gl-flip" + (flipped && stats ? " gl-stats" : flipped ? " gl-on" : "") + (r === "super" ? " gl-super" : "")} style={{ width: "100%", height: "100%" }}>
-          <div className="gl-face">{flipped ? <CardStats card={p.card} /> : <CardBack packId={p.card.packId} season={playerOf(p.card.playerId).season} />}</div>
+          <div className="gl-face">{flipped ? <CardStats card={p.card} /> : <CardBack packId={originPack(p.card)} season={playerOf(p.card.playerId).season} />}</div>
           <div className="gl-face gl-front">
             <CardFace card={p.card} />
             {sweep ? <div style={{ ...ABS, inset: 0, borderRadius: 10, zIndex: 4, background: "linear-gradient(115deg, transparent 32%, " + (r === "gold" ? "rgba(255,255,230,0.85)" : r === "potw" ? "rgba(200,255,225,0.9)" : "rgba(255,255,255,0.85)") + " 50%, transparent 68%)", backgroundSize: "180% 100%", animation: (r === "gold" ? "glCoinShine " + sp("1.1s", "0.7s") + " ease-out 2" : "glHoloSweep " + sp("0.85s", "1.4s") + " linear 3") }} /> : null}
@@ -1620,6 +1646,64 @@ function lastFreeAt(raw: string): number {
 function freeReadyAt(raw: string): number {
   const last = lastFreeAt(raw);
   return last === 0 ? 0 : last + FREE_COOLDOWN;
+}
+// Side-channel cooldown stamp so a backup restore, collection reset, or stale tab cannot clear a claim that already started.
+const FREE_AT_KEY = "gl-legends-2026-free-at";
+let memFreeAt = 0;
+let freeClaimArmed = false;
+function readStoreFreeAt(): number {
+  let t = 0;
+  if (typeof window === "undefined") return t;
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    try { t = Math.max(t, lastFreeAt(store.getItem(FREE_AT_KEY) || "")); } catch { /* blocked */ }
+  }
+  return t;
+}
+function persistFreeAt(ts: number): void {
+  if (!(ts > 0)) return;
+  memFreeAt = Math.max(memFreeAt, ts);
+  if (ts < readStoreFreeAt()) return;
+  if (typeof window === "undefined") return;
+  const raw = String(ts);
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    try { store.setItem(FREE_AT_KEY, raw); } catch { /* blocked */ }
+  }
+}
+function peekFreeAt(dailyRaw = ""): number {
+  return Math.max(lastFreeAt(dailyRaw), memFreeAt, readStoreFreeAt());
+}
+function isFreeReady(dailyRaw = "", now = Date.now()): boolean {
+  if (freeClaimArmed) return false;
+  const last = peekFreeAt(dailyRaw);
+  return last === 0 || now >= last + FREE_COOLDOWN;
+}
+// Stamp the cooldown synchronously and arm a one-shot token that startOpen("free") must consume.
+function armFreeClaim(dailyRaw = "", now = Date.now()): boolean {
+  if (!isFreeReady(dailyRaw, now)) return false;
+  memFreeAt = Math.max(memFreeAt, now);
+  persistFreeAt(now);
+  freeClaimArmed = true;
+  return true;
+}
+function consumeFreeClaim(): boolean {
+  if (!freeClaimArmed) return false;
+  freeClaimArmed = false;
+  return true;
+}
+function mergeFreeMeta(m: Meta): Meta {
+  const last = peekFreeAt(m.daily);
+  const cur = lastFreeAt(m.daily);
+  if (last > cur) return { ...m, daily: String(last) };
+  if (cur > 0) persistFreeAt(cur);
+  return m;
+}
+function resetFreeClaimForTests(): void {
+  memFreeAt = 0;
+  freeClaimArmed = false;
+  if (typeof window === "undefined") return;
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    try { store.removeItem(FREE_AT_KEY); } catch { /* blocked */ }
+  }
 }
 function FreeClock(p: { until: number; onReady: () => void }): ReactNode {
   const [now, setNow] = useState(Date.now());
@@ -1819,7 +1903,7 @@ export default function GridironLegends() {
     const q = query.trim().toLowerCase();
     const any = collection.some((c) => {
       const pl = playerOf(c.playerId);
-      return (team === "ALL" || pl.team.abbr === team) && (rarity === "ALL" || c.rarity === rarity) && (pack === "ALL" || c.packId === pack) && (!q || pl.name.toLowerCase().includes(q));
+      return (team === "ALL" || pl.team.abbr === team) && (rarity === "ALL" || c.rarity === rarity) && (pack === "ALL" || originPack(c) === pack) && (!q || pl.name.toLowerCase().includes(q));
     });
     const hideAll = collection.length > 0 && !any;
     if (!filtersBooted.current) {
@@ -1842,6 +1926,18 @@ export default function GridironLegends() {
     return () => {
       window.removeEventListener("pagehide", flush);
       window.removeEventListener("beforeunload", flush);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refresh = (): void => setDayTick((n) => n + 1);
+    const onStor = (e: StorageEvent): void => { if (e.key === FREE_AT_KEY || e.key === SAVE_KEY) refresh(); };
+    const onVis = (): void => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("storage", onStor);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("storage", onStor);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, []);
@@ -1919,12 +2015,16 @@ export default function GridironLegends() {
   }, [inspectCard, stage, triggerFx, triggerTeam]);
 
   const resetView = (): void => {
-    setReveal(null); setMulti([]); setFx(null); setTeamFx(null); setChargeUid(null); setBurstUid(null); setTearHot(false); setCowboysHit(0); setNotice(""); setConfirmSell(""); teamSeen.current = new Set();
+    setReveal(null); setMulti([]); setKept([]); setFx(null); setTeamFx(null); setChargeUid(null); setBurstUid(null); setTearHot(false); setCowboysHit(0); setNotice(""); setConfirmSell(""); teamSeen.current = new Set();
   };
 
   const startOpen = (freeId?: PackId): void => {
     if (busyRef.current || (!readyPack && !freeId)) return;
     const id = freeId ?? readyPack?.packId ?? "standard";
+    if (id === "free") {
+      // Only claimDaily may open a Free Pack, and only by consuming the one-shot token it just armed.
+      if (freeId !== "free" || !consumeFreeClaim()) return;
+    }
     const price = freeId ? 0 : PB[id].price;
     if (balance < price) { setNotice("Not enough funds — the " + PB[id].name + " costs " + money(price) + " and you have " + money(balance) + ". Sell cards from your binder to get more."); return; }
     unlockAudio();
@@ -1946,6 +2046,7 @@ export default function GridironLegends() {
     setTearHot(card.rarity === "super");
     setReveal({ ...card, flipped: false });
     setStage("tearing");
+    window.setTimeout(() => { if (persistReadyRef.current) writeSave(latestRef.current); }, 0);
     window.setTimeout(() => { if (genRef.current === gen) { setTearHot(false); setStage("reveal"); } }, rm() ? 120 : 720);
     // Safety net: if anything stalls, show the card and unlock the UI.
     window.setTimeout(() => {
@@ -1980,6 +2081,7 @@ export default function GridironLegends() {
     const top = cards.reduce((a, b) => (RB[b.rarity].rank > RB[a.rarity].rank ? b : a));
     triggerFx(top.rarity, undefined, id === "boom" && (top.rarity === "auto" || top.rarity === "super"));
     triggerTeam(top);
+    window.setTimeout(() => { if (persistReadyRef.current) writeSave(latestRef.current); }, 0);
   };
 
   // Auto-reveal after the tear; rarer cards charge up longer first.
@@ -1994,13 +2096,21 @@ export default function GridironLegends() {
   }, [stage, reveal, flipNow]);
 
   const opening = stage === "tearing" || (stage === "reveal" && busy);
-  const freeAt = freeReadyAt(meta.daily);
-  const dailyReady = Date.now() >= freeAt;
+  const freeAt = (() => { const last = peekFreeAt(meta.daily); return last === 0 ? 0 : last + FREE_COOLDOWN; })();
+  const dailyReady = isFreeReady(meta.daily);
   // One Free Pack with a 5-minute cooldown. It is its own pack: the pool is every obtainable card in the game, rolled on the Free Pack odds table.
   const claimDaily = (): void => {
-    if (!dailyReady || opening || busyRef.current) return;
+    if (opening || busyRef.current) return;
+    const now = Date.now();
+    const dailyRaw = latestRef.current.meta.daily;
+    // Re-read storage (other tabs / reloads) and stamp the cooldown BEFORE the reveal starts.
+    if (!armFreeClaim(dailyRaw, now)) { setDayTick((n) => n + 1); return; }
+    const nextMeta = { ...latestRef.current.meta, daily: String(now), dailyN: latestRef.current.meta.dailyN + 1 };
+    latestRef.current = { ...latestRef.current, meta: nextMeta };
+    setMeta(nextMeta);
+    if (persistReadyRef.current) writeSave(latestRef.current);
+    setDayTick((n) => n + 1);
     unlockAudio();
-    setMeta((m) => ({ ...m, daily: String(Date.now()), dailyN: m.dailyN + 1 }));
     playSound("daily", soundRef.current, true);
     setNotice("🎁 Free Pack is on us. Next one in 5:00.");
     startOpen("free");
@@ -2029,7 +2139,8 @@ export default function GridironLegends() {
     setStage("idle");
     resetView();
     clearBusy();
-    if (again) { setReadyPack({ packId }); setSelectedPack(packId); }
+    // "Open another" after a Free Pack goes back to the store; it must not reopen or queue a free pack.
+    if (again && packId !== "free") { setReadyPack({ packId }); setSelectedPack(packId); }
   };
 
   const resetCollection = (): void => {
@@ -2053,7 +2164,9 @@ export default function GridironLegends() {
     setSelectedPack(null);
     setOddsPack(null);
     setInspectCard(null);
-    writeSave(defaultSave(), true);
+    const reset = defaultSave();
+    const keptMeta = mergeFreeMeta({ ...reset.meta, daily: latestRef.current.meta.daily, dailyN: latestRef.current.meta.dailyN });
+    writeSave({ ...reset, meta: keptMeta }, true);
   };
 
   const addPulls = (cards: Card[]): void => {
@@ -2066,16 +2179,28 @@ export default function GridironLegends() {
     });
   };
 
+  const flushSave = (patch: Partial<Save>): void => {
+    const next: Save = { ...latestRef.current, ...patch };
+    latestRef.current = next;
+    if (!persistReadyRef.current) return;
+    const ok = writeSave(next);
+    setPersistOk(ok);
+    if (ok) setSavedAt({ t: Date.now(), manual: false });
+  };
+
   const sellCards = (cards: Card[]): void => {
     if (cards.length === 0) return;
     const ids = new Set(cards.map((c) => c.uid));
     const total = cards.reduce((s, c) => s + cardVal(c), 0);
     const first = cards[0];
-    setCollection((prev) => prev.filter((c) => !ids.has(c.uid)));
+    const nextCol = latestRef.current.collection.filter((c) => !ids.has(c.uid));
+    const nextBal = Math.round(latestRef.current.balance + total);
+    setCollection(nextCol);
     setMulti((prev) => prev.filter((c) => !ids.has(c.uid)));
-    setBalance((b) => Math.round(b + total));
+    setBalance(nextBal);
     setConfirmSell("");
-    setNotice("Sold " + (first && cards.length === 1 ? playerOf(first.playerId).name : cards.length + " cards") + " for " + money(total) + ".");
+    setNotice("Sold ✓ " + (first && cards.length === 1 ? playerOf(first.playerId).name : cards.length + " cards") + " for " + money(total) + ".");
+    flushSave({ collection: nextCol, balance: nextBal });
   };
 
   const sellRevealed = (): void => {
@@ -2094,9 +2219,13 @@ export default function GridironLegends() {
     setNotice("Added to binder ✓");
   };
 
+  // Keep in a 10-pack puts the card in the binder immediately (and writes the save), so it is not lost if the batch is closed mid-way.
   const keepOne = (c: Card): void => {
-    setKept((k) => k.concat([c.uid]));
-    setNotice("Added to binder ✓");
+    const nextCol = latestRef.current.collection.some((x) => x.uid === c.uid) ? latestRef.current.collection : latestRef.current.collection.concat([c]);
+    setCollection(nextCol);
+    setKept((k) => (k.includes(c.uid) ? k : k.concat([c.uid])));
+    setNotice("Kept ✓ " + playerOf(c.playerId).name);
+    flushSave({ collection: nextCol, cardSeq: latestRef.current.cardSeq });
   };
 
   const keepAll = (): void => {
@@ -2105,6 +2234,7 @@ export default function GridironLegends() {
     setStage("idle"); setMulti([]); setFx(null); setTeamFx(null); setCowboysHit(0); setConfirmSell("");
     setReadyPack({ packId }); setSelectedPack(packId);
     setNotice("Added " + n + " cards to binder ✓");
+    if (persistReadyRef.current) writeSave(latestRef.current);
   };
 
   const sellAllMulti = (): void => {
@@ -2176,7 +2306,8 @@ export default function GridironLegends() {
   const applyRestore = (s: Save, silent = false): void => {
     genRef.current += 1;
     cardSeq = Math.max(cardSeq, s.cardSeq);
-    setCollection(s.collection); setOpenedCounts(s.openedCounts); setBalance(s.balance); setPulls(s.pulls); setSupers(s.supers); setSoundOn(s.soundOn); setLocked(s.locked); setMeta(s.meta); achDone.current = new Set(s.meta.ach);
+    const restored: Save = { ...s, meta: mergeFreeMeta(s.meta), readyPack: s.readyPack && s.readyPack.packId !== "free" ? s.readyPack : null };
+    setCollection(restored.collection); setOpenedCounts(restored.openedCounts); setBalance(restored.balance); setPulls(restored.pulls); setSupers(restored.supers); setSoundOn(restored.soundOn); setLocked(restored.locked); setMeta(restored.meta); achDone.current = new Set(restored.meta.ach);
     setReadyPack(null); setStage("idle"); resetView(); clearBusy(); setSelectedPack(null); setOddsPack(null); setInspectCard(null);
     setPendingRestore(null); setRestoreText(""); setBackupCode("");
     setTeamFilter("ALL"); setRarityFilter("ALL"); setPackFilter("ALL"); setQuery("");
@@ -2278,11 +2409,13 @@ export default function GridironLegends() {
       const pack = parsePackFilter(packFilter);
       const team = parseTeamFilter(teamFilter);
       const rarity = parseRarityFilter(rarityFilter);
-      return (team === "ALL" || pl.team.abbr === team) && (rarity === "ALL" || e.card.rarity === rarity) && (pack === "ALL" || e.card.packId === pack) && (!q || pl.name.toLowerCase().includes(q));
+      return (team === "ALL" || pl.team.abbr === team) && (rarity === "ALL" || e.card.rarity === rarity) && (pack === "ALL" || originPack(e.card) === pack) && (!q || pl.name.toLowerCase().includes(q));
     });
     const dir = sortAsc ? 1 : -1;
     list.sort((a, b) => {
       const pa = playerOf(a.card.playerId), pb = playerOf(b.card.playerId);
+      const ca = isChaseCard(a.card) ? 0 : 1, cb = isChaseCard(b.card) ? 0 : 1;
+      if (ca !== cb) return ca - cb;
       if (sortKey === "valueHi" || sortKey === "valueLo") {
         const d = cardVal(a.card) - cardVal(b.card);
         if (d !== 0) return sortKey === "valueHi" ? -d : d;
@@ -2295,7 +2428,7 @@ export default function GridironLegends() {
         : sortKey === "name" ? pa.name.localeCompare(pb.name)
         : sortKey === "team" ? pa.team.name.localeCompare(pb.team.name)
         : sortKey === "pos" ? pa.pos.localeCompare(pb.pos)
-        : sortKey === "pack" ? PIDS.indexOf(a.card.packId) - PIDS.indexOf(b.card.packId)
+        : sortKey === "pack" ? PIDS.indexOf(originPack(a.card)) - PIDS.indexOf(originPack(b.card))
         : a.count - b.count;
       return cmp !== 0 ? cmp * dir : pa.name.localeCompare(pb.name);
     });
@@ -2327,6 +2460,7 @@ export default function GridironLegends() {
       {teamFx ? <TeamFx team={teamFx.team} rarity={teamFx.rarity} token={teamFx.token} /> : null}
       <div style={{ marginTop: -6 }}>
         <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.15, letterSpacing: 0.3, color: "#d4920a" }}>Version {VERSION}</div>
+        <div style={{ marginTop: 4, fontSize: 13, fontWeight: 700, letterSpacing: 0.2, color: "#ffe27a" }}>{"Chase Cards & Seasonal Packs Update"}</div>
         <button type="button" onClick={saveNow} aria-label="Don't forget to save the game. Tap to save." style={{ appearance: "none", display: "inline-block", marginTop: 8, padding: "6px 12px", borderRadius: 999, border: "1px solid rgba(255,226,122,0.55)", background: "linear-gradient(180deg, #0b2447 0%, #07303a 100%)", color: "#ffe27a", font: "inherit", fontSize: 12, fontWeight: 700, lineHeight: 1.3, cursor: "pointer", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>Don't forget to save the game 😁</button>
         <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, opacity: 0.6 }}>Fan-made simulator. Not affiliated with the NFL or any card company.</div>
       </div>
@@ -2360,7 +2494,7 @@ export default function GridironLegends() {
           {(() => { const nx = nextSeasonChange(); return <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.22)", border: "1px solid " + SEASON_THEME[seasonOf()].trim, fontSize: 13, lineHeight: 1.4 }}><div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>🎟 Season pack · {SEASON_THEME[seasonOf()].name}</div><div style={{ opacity: 0.85, marginTop: 3 }}>Active now ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nx.id].name} on {formatLongDate(nx.at)}. Pulled Season cards stay in your collection after it switches, and only this season's 3 ★ chase 1/1s can be pulled until then.</div></div>; })()}
           <div className="gl-grid3" style={{ marginTop: 16 }}>
             <div className="gl-packcell">
-              <button type="button" className={"gl-tile" + (dailyReady ? " gl-sel" : "")} onClick={() => { if (dailyReady && !opening) claimDaily(); }} disabled={opening} aria-label={dailyReady ? "Claim free pack" : "Free pack on cooldown"} style={{ opacity: dailyReady ? 1 : 0.82 }}>
+              <button type="button" className={"gl-tile" + (dailyReady ? " gl-sel" : "")} onClick={() => { if (!opening && !busyRef.current && isFreeReady(latestRef.current.meta.daily)) claimDaily(); }} disabled={opening || !dailyReady} aria-label={dailyReady ? "Claim free pack" : "Free pack on cooldown"} style={{ opacity: dailyReady ? 1 : 0.82 }}>
                 <div style={{ width: 70, height: 100, borderRadius: 8, margin: "0 auto", background: "linear-gradient(165deg, #05261a 0%, #1fd37a 45%, #0a4a2c 100%)", border: "2px solid #d6ffe9", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", boxShadow: "0 4px 10px rgba(0,0,0,0.35)", flexShrink: 0 }}>
                   <div style={{ fontSize: 8, letterSpacing: 1, fontWeight: 700, opacity: 0.85 }}>{YEAR}</div>
                   <div style={{ margin: "4px 0 3px", height: 34, display: "flex", alignItems: "center" }}><PackEmblem id="free" /></div>
@@ -2390,7 +2524,7 @@ export default function GridironLegends() {
               <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>{selected.blurb} 1 card · {selected.hint} · {money(selected.price)} per pack (10 packs {money(selected.price * 10)}).</div>
               <div style={{ marginTop: 10, fontSize: 13 }}>{readyPack && readyPack.packId === selected.id ? "Your " + selected.name + " is ready below — tap the sealed pack to open it." : "Tap the tile to get a pack, then rip it below."}</div>
               <ChaseRow packId={selected.id} supers={heldSupers} />
-              {selected.id === "boom" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>A 1/1 here can be any of the {HOME_CHASE_IDS.size} ★ home chase 1/1s (see the Chase Cards tab). Seasonal chase cards are only in the Season pack.</div> : selected.id === "season" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>Active season: {SEASON_THEME[seasonOf()].name} ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nextSeasonChange().id].name} on {formatLongDate(nextSeasonChange().at)}. Only this season's 3 ★ chase 1/1s can be pulled now.</div> : null}
+              {selected.id === "boom" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>A 1/1 here can be any of the {HOME_CHASE_IDS.size} ★ home chase 1/1s (see the Chase Cards tab). Seasonal and POTW chase cards are only in their own packs.</div> : selected.id === "season" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>Active season: {SEASON_THEME[seasonOf()].name} ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nextSeasonChange().id].name} on {formatLongDate(nextSeasonChange().at)}. Only this season's 3 ★ chase 1/1s can be pulled now.</div> : selected.id === "potw" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>This pack keeps a 25% shot at a green Player of the Week card. A small share of the rest can be a 1/1, including one of this pack's 3 ★ chase 1/1s.</div> : null}
             </div>
           ) : <div style={{ marginTop: 12, fontSize: 13, opacity: 0.8 }}>Tap a pack to select it.</div>}
           {oddsPack ? (
@@ -2403,7 +2537,7 @@ export default function GridironLegends() {
                 </div>
               ))}
               <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700 }}>{oddsFocus === "free" ? <>Free · average card value {money(evOf("free"))}</> : <>Price {money(PB[oddsFocus].price)} · average card value {money(evOf(oddsFocus))} ({Math.round((evOf(oddsFocus) / PB[oddsFocus].price) * 100)}% of price)</>}</div>
-              <div style={{ fontSize: 12, marginTop: 8, opacity: 0.75 }}>{oddsFocus === "free" ? "Chance per pack. The Free Pack can pull any card obtainable in the game: every player and every rarity from Standard, Rising Stars, Stars, Legends, Player of the Week, Boom or Bust, and the current Season pack, including inserts and this season's 3 ★ chase 1/1s. Mostly Base and Silver, with a small shot at the rare stuff. Card values match the source pack (a Boom or Bust Base is a Bust). Owned chase 1/1s cannot be pulled again." : <>Chance per pack. The cheapest card in this pack is worth {money(Math.min(...poolOf(oddsFocus).map((p) => valueOf(p, oddsFocus === "potw" ? "silver" : "base", oddsFocus))))}{oddsFocus === "potw" ? "." : " and every 1/1 is worth at least " + money(oddsFocus === "boom" ? BOOM_FLOOR.super : 1000) + "."} Card values swing widely: most pulls are worth less than the pack, and a rare hit is worth far more. {oddsFocus === "standard" ? "The Standard pack draws from every player in the set. Player of the Week cards (green) can drop in any pack at 0.4%." : oddsFocus === "potw" ? "Silver cards come from every player in the set; Player of the Week cards come from this season's weekly award winners." : oddsFocus === "boom" ? "Boom or Bust draws from every player in the set. Base is the Bust, worth only a few coins. An Autograph or 1/1 is the Boom: every Auto is worth at least " + money(BOOM_FLOOR.auto) + " and every 1/1 at least " + money(BOOM_FLOOR.super) + ". A 1/1 here can also be one of the " + CHASE_IDS.size + " chase 1/1s. Player of the Week cards (green) drop at 0.4%." : oddsFocus === "season" ? "The Season pack draws from this season's themed player list. Its three ★ chase 1/1s are unique to this season and cannot be pulled after the season changes (cards you already pulled stay in your binder). Player of the Week cards (green) can drop at 0.4%." : "Each pack draws only from its own player pool, never shared with the other packs. Player of the Week cards (green) can drop in any pack at 0.4%."}</>}</div>
+              <div style={{ fontSize: 12, marginTop: 8, opacity: 0.75 }}>{oddsFocus === "free" ? "Chance per pack. The Free Pack can pull any card obtainable in the game: every player and every rarity from Standard, Rising Stars, Stars, Legends, Player of the Week, Boom or Bust, and the current Season pack, including inserts, the POTW pack's 3 ★ chase 1/1s, and this season's 3 ★ chase 1/1s. Mostly Base and Silver, with a small shot at the rare stuff. Card values match the source pack (a Boom or Bust Base is a Bust). Owned chase 1/1s cannot be pulled again." : <>Chance per pack. The cheapest card in this pack is worth {money(Math.min(...poolOf(oddsFocus).map((p) => valueOf(p, oddsFocus === "potw" ? "silver" : "base", oddsFocus))))}{oddsFocus === "potw" ? "." : " and every 1/1 is worth at least " + money(oddsFocus === "boom" ? BOOM_FLOOR.super : 1000) + "."} Card values swing widely: most pulls are worth less than the pack, and a rare hit is worth far more. {oddsFocus === "standard" ? "The Standard pack draws from every player in the set. Player of the Week cards (green) can drop in any pack at 0.4%." : oddsFocus === "potw" ? "Silver cards come from every player in the set; Player of the Week cards come from this season's weekly award winners. A small share of pulls are 1/1s (taken from Silver; the 25% POTW chance is unchanged), and some of those 1/1s are one of this pack's 3 ★ chase 1/1s." : oddsFocus === "boom" ? "Boom or Bust draws from every player in the set. Base is the Bust, worth only a few coins. An Autograph or 1/1 is the Boom: every Auto is worth at least " + money(BOOM_FLOOR.auto) + " and every 1/1 at least " + money(BOOM_FLOOR.super) + ". A 1/1 here can also be one of the " + CHASE_IDS.size + " chase 1/1s. Player of the Week cards (green) drop at 0.4%." : oddsFocus === "season" ? "The Season pack draws from this season's themed player list. Base cards drop at 34%, with the other rarities rebalanced around that. Its three ★ chase 1/1s are unique to this season and cannot be pulled after the season changes (cards you already pulled stay in your binder). Player of the Week cards (green) can drop at 0.5%." : "Each pack draws only from its own player pool, never shared with the other packs. Player of the Week cards (green) can drop in any pack at 0.4%."}</>}</div>
             </div>
           ) : null}
         </div>
@@ -2442,7 +2576,7 @@ export default function GridironLegends() {
               {reveal.flipped ? <div style={{ position: "relative", zIndex: 2, textAlign: "center", marginTop: 8, fontSize: 12, fontWeight: 600, color: theme.text.secondary }}>Value {money(cardVal(reveal))} · {chanceText(reveal)}</div> : null}
               <div style={{ position: "relative", zIndex: 2, display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12, justifyContent: "center" }}>
                 {reveal.flipped ? <div style={{ display: "flex", gap: 8, justifyContent: "center", width: "100%", flexWrap: "wrap" }}><Button label="✓ Keep" variant="primary" onClick={keepRevealed} /><Button label={(confirmSell === "rev" ? "Confirm sell · " : "Sell · ") + money(cardVal(reveal))} onClick={() => { if (confirmSell !== "rev") { setConfirmSell("rev"); return; } sellRevealed(); }} /></div> : null}
-                <Button label="Open another" onClick={() => backToStore(true)} disabled={opening} />
+                {packId !== "free" ? <Button label="Open another" onClick={() => backToStore(true)} disabled={opening} /> : null}
                 <Button label="Back to store" onClick={() => backToStore(false)} disabled={opening} />
               </div>
             </div>
@@ -2452,12 +2586,12 @@ export default function GridironLegends() {
             <div className="gl-reveal" style={{ padding: "16px 6px 8px" }}>
               {multiTop ? <Backdrop r={multiTop} charged={false} burst={!!fx} token={fx?.token ?? 1} /> : null}
               <div style={{ position: "relative", zIndex: 2 }}>
-                <Text>{PB[packId].name} · {multiN} packs opened · {multi.length === 0 ? "no cards" : multi.length === 1 ? "1 card" : multi.length + " cards"} left{multiN > multi.length ? " (" + (multiN - multi.length) + " sold)" : ""}. Tap any card to enlarge and flip it.</Text>
+                <Text>{PB[packId].name} · {multiN} packs opened · {multi.length === 0 ? "no cards" : multi.length + (multi.length === 1 ? " card" : " cards")} in this batch{kept.length ? " · " + kept.length + " kept ✓" : ""}{multiN > multi.length ? " · " + (multiN - multi.length) + " sold" : ""}. Keep or sell each card now — it is saved right away. Tap any card to enlarge and flip it.</Text>
                 <div className="gl-cards" style={{ marginTop: 8 }}>
                   {multi.map((c) => <div key={c.uid} style={{ animation: RB[c.rarity].rank >= 3 ? "glGlowPulse 1.6s ease-in-out 2" : undefined }}><MiniCard card={c} onInspect={setInspectCard} />
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <button type="button" className="gl-sell" disabled={kept.includes(c.uid)} style={{ background: "#1f9d55", color: "#ffffff", opacity: kept.includes(c.uid) ? 0.7 : 1 }} onClick={() => keepOne(c)}>{kept.includes(c.uid) ? "Kept ✓" : "✓ Keep"}</button>
-                      <button type="button" className="gl-sell" onClick={() => { if (confirmSell !== c.uid) { setConfirmSell(c.uid); return; } sellCards([c]); }}>{confirmSell === c.uid ? "Confirm sell" : "Sell " + money(cardVal(c))}</button>
+                      <button type="button" className="gl-sell" onClick={() => sellCards([c])}>Sell {money(cardVal(c))}</button>
                     </div>
                   </div>)}
                 </div>
@@ -2466,7 +2600,7 @@ export default function GridironLegends() {
                     <Button label="✓ Keep all" variant="primary" onClick={keepAll} disabled={multi.length === 0} />
                     <Button label={confirmSell === "all" ? "Confirm sell all · " + money(multiTotal) : "Sell all · " + money(multiTotal)} onClick={() => { if (confirmSell !== "all") { setConfirmSell("all"); return; } sellAllMulti(); }} disabled={multi.length === 0} />
                   </div>
-                  <Button label="Open another" onClick={() => backToStore(true)} />
+                  {packId !== "free" ? <Button label="Open another" onClick={() => backToStore(true)} /> : null}
                   <Button label="Back to store" onClick={() => backToStore(false)} />
                 </div>
               </div>
@@ -2565,20 +2699,22 @@ export default function GridironLegends() {
       ) : null}
       {tab === "chase" ? (
       <Section heading="Chase Cards">
-        <Text>Every home pack (and the Boom or Bust pack) hides named ★ chase 1/1s. The Season pack has three of its own, unique to the active season and different from every other season. Only the current season's three can be pulled; once you pull one it is gone from the pack, shows as Pulled here, and stays in your binder after the season changes (or you can sell it).</Text>
+        <Text>Every home pack (and the Boom or Bust pack) hides named ★ chase 1/1s. The Season pack has three of its own, unique to the active season and different from every other season. Only the current season's three can be pulled; once you pull one it is gone from the pack, shows as Pulled here, and stays in your binder after the season changes (or you can sell it). The Player of the Week pack has three ★ chase 1/1s of its own. A chase pulled from the Free Pack is the same card as from its home pack and counts here.</Text>
         <Metrics metrics={[
           { value: heldSupers.filter((id) => HOME_CHASE_IDS.has(id)).length + "/" + HOME_CHASE_IDS.size, label: "Home chase 1/1s", detail: "Rising Stars, Stars and Legends" },
+          { value: heldSupers.filter((id) => POTW_CHASE_IDS.has(id)).length + "/3", label: "POTW chase 1/1s", detail: "Player of the Week pack" },
           { value: heldSupers.filter((id) => SEASON_CHASE[seasonOf()].some((p) => p.id === id)).length + "/3", label: "This season", detail: SEASON_THEME[seasonOf()].name + " chase 1/1s" },
           { value: Math.round(CHASE_SHARE * 100) + "%", label: "Chase share of a 1/1", detail: "Of the rare 1/1 slot in each pack" },
         ]} />
         <ChaseRow packId="season" supers={heldSupers} />
+        <ChaseRow packId="potw" supers={heldSupers} />
         {HOME.filter((h) => chaseOf(h).length > 0).map((h) => <ChaseRow key={h} packId={h} supers={heldSupers} />)}
         {SEASON_IDS.filter((id) => id !== seasonOf() && SEASON_CHASE[id].some((pl) => heldSupers.includes(pl.id))).map((id) => <ChaseRow key={id} packId="season" season={id} supers={heldSupers} />)}
       </Section>
       ) : null}
       {tab === "sets" ? (
       <Section heading="Sets">
-        <Text>Collect every player in a set. Any card of a player counts, except the Players of the Week set (needs the POTW card) and the chase sets (need the 1/1). Each team has one set that needs every player on that team from any pack (Rising Stars, Stars or Legends), and its reward adds up 35% of each player's pack price. Each season also has a 3-card chase set. Finishing a set lets you claim its coin reward once; selling cards can lower your count, but a claimed set keeps its badge.</Text>
+        <Text>Collect every player in a set. Any card of a player counts, except the Players of the Week set (needs the POTW card) and the chase sets (need the 1/1). Each team has one set that needs every player on that team from any pack (Rising Stars, Stars or Legends), and its reward adds up 35% of each player's pack price. Each season also has a 3-card chase set, and the Player of the Week pack has its own 3-card chase set. Finishing a set lets you claim its coin reward once; selling cards can lower your count, but a claimed set keeps its badge.</Text>
         <Metrics metrics={[
           { value: SETS.filter((s) => meta.sets.includes(s.id)).length + "/" + SETS.length, label: "Sets completed", detail: "Rewards claimed once" },
           { value: String(SETS.filter((s) => !meta.sets.includes(s.id) && (setProg[s.id] ?? 0) >= s.players.length).length), label: "Ready to claim", detail: "Tap Claim below" },
@@ -2624,4 +2760,4 @@ export default function GridironLegends() {
     </Page>
   );
 }
-export { encodeBackup, decodeBackup, loadSave, compactOf, defaultSave, PLAYERS, PBYID, evOf, valueOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, POTW_PLAYERS, parsePackFilter, asPackId, FREE_TENTHS, FREE_PACK, RARITIES };
+export { encodeBackup, decodeBackup, loadSave, compactOf, defaultSave, PLAYERS, PBYID, evOf, valueOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, POTW_PLAYERS, POTW_CHASE, parsePackFilter, asPackId, FREE_TENTHS, SEASON_TENTHS, FREE_PACK, RARITIES, drawCard, isChaseCard, originPack, CHASE_IDS, chaseOf, CHASE_SHARE, FREE_COOLDOWN, FREE_AT_KEY, lastFreeAt, peekFreeAt, isFreeReady, armFreeClaim, consumeFreeClaim, mergeFreeMeta, resetFreeClaimForTests, persistFreeAt };

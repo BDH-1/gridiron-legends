@@ -60,3 +60,19 @@ for (const id of Object.keys(SEASON_ROSTER) as (keyof typeof SEASON_ROSTER)[]) {
 if (dups.length) throw new Error("duplicate chase across seasons: " + dups.join(", "));
 if (seen.size !== 15) throw new Error("expected 15 unique chase names, got " + seen.size);
 console.log("UNIQUE_CHASE_OK", seen.size);
+
+console.log("--- gold values (Rising Stars / Stars should be 70-79) ---");
+for (const id of ["rookie", "stars", "legends", "season", "standard"] as const) {
+  const pool = PLAYERS.filter((p) => id === "standard" || id === "season" || p.packId === id || (id === "season" && p.season));
+  const vs = pool.map((p) => valueOf(p, "gold", id));
+  console.log("gold via", id, span(vs));
+}
+
+console.log("--- season tenths ---");
+let sum = 0;
+for (const r of RARITIES) {
+  const n = r.tenths.season;
+  sum += n;
+  if (n) console.log(" ", r.id, (n / 10) + "%");
+}
+console.log("season tenths sum", sum, "base", RARITIES.find((r) => r.id === "base")?.tenths.season);
