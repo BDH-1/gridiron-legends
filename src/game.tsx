@@ -16,7 +16,7 @@ interface Meta { daily: string; dailyN: number; sets: string[]; ach: string[] }
 interface Save { v: 2; collection: Card[]; openedCounts: Record<PackId, number>; soundOn: boolean; cardSeq: number; readyPack: { packId: PackId } | null; balance: number; pulls: Record<string, number>; supers: string[]; locked: boolean; meta: Meta }
 
 const SET = "Gridiron Legends";
-const VERSION = "3.9"; // bump by 0.1 with each change
+const VERSION = "4.0"; // bump by 0.1 with each change
 const YEAR = "2026";
 const HOME: HomeId[] = ["rookie", "stars", "legends"];
 const SEASON_IDS: SeasonId[] = ["superbowl", "rookies", "halloween", "thanksgiving", "christmas"];
@@ -56,31 +56,31 @@ const PIDS: PackId[] = SOURCE_PIDS.concat(["free"]);
 const RAINBOW = "linear-gradient(120deg, #ff4d6d, #ffb000, #3dff8a, #3dc6ff, #c44dff, #ff4d6d)";
 
 // Boom or Bust pack odds in tenths of a percent: Base is the bust, Auto and 1/1 are the booms, plus the usual 0.4 percent POTW. Nothing else drops.
-const BOOM_TENTHS: Partial<Record<RarityId, number>> = { base: 800, auto: 130, potw: 4, super: 66 };
-// Free Pack odds in tenths of a percent: mostly Base and Silver, with small shots at inserts, Gold, POTW, Auto and 1/1. The pack can hit any card the other packs can, including this season's chases and a Boom or Bust bust.
-const FREE_TENTHS: Record<RarityId, number> = { base: 620, silver: 250, kings: 10, walls: 10, phenom: 10, gold: 70, potw: 10, auto: 15, super: 5 };
-// Season pack: Base is 34%. Other tiers are the previous Stars-identical table scaled so everything still sums to 100. The 3 seasonal chase 1/1s stay a CHASE_SHARE of the 1/1 slot.
-const SEASON_TENTHS: Record<RarityId, number> = { base: 340, silver: 334, kings: 14, walls: 14, phenom: 0, gold: 195, potw: 5, auto: 77, super: 21 };
+const BOOM_TENTHS: Partial<Record<RarityId, number>> = { base: 799.9, auto: 130, potw: 4, phenom: 0.1, super: 66 };
+// Free Pack odds in tenths of a percent: mostly Base and Silver, with small shots at inserts, Gold, POTW, Auto and 1/1. Rookie Phenoms are a 0.01% sliver here; they are mainly in Rising Stars.
+const FREE_TENTHS: Record<RarityId, number> = { base: 629.9, silver: 250, kings: 10, walls: 10, phenom: 0.1, gold: 70, potw: 10, auto: 15, super: 5 };
+// Season pack: Base is 34%. Other tiers are the previous Stars-identical table scaled so everything still sums to 100. The 3 seasonal chase 1/1s stay a CHASE_SHARE of the 1/1 slot. Rookie Phenoms are 0.01%.
+const SEASON_TENTHS: Record<RarityId, number> = { base: 339.9, silver: 334, kings: 14, walls: 14, phenom: 0.1, gold: 195, potw: 5, auto: 77, super: 21 };
 // Boom or Bust value floors: the cheapest Auto, 1/1 and POTW in this pack.
 const BOOM_FLOOR = { potw: 100, auto: 300, super: 540 };
 const RARITIES: Rarity[] = ([
-  ["base", "Base", "Base", 516, 526, 226, 666, 0, "#c8c2b4", "#2a2a28", "transparent", "linear-gradient(180deg, #fbf8f1, #e7e1d4)"],
-  ["silver", "Silver Parallel", "Silver", 240, 240, 300, 150, 746, "#b8c0c8", "#1c242c", "rgba(192,206,220,0.85)", "linear-gradient(180deg, #f4f7fb, #d5dce6)"],
-  ["kings", "Gridiron Kings", "Kings", 10, 10, 10, 10, 0, "#9a63ff", "#f3e9ff", "rgba(160,110,255,0.95)", "linear-gradient(180deg, #f1e6ff, #cdb0ff)"],
-  ["walls", "Defensive Walls", "Walls", 10, 10, 10, 10, 0, "#27b6d6", "#06222b", "rgba(40,190,225,0.9)", "linear-gradient(180deg, #e2f9ff, #a9e4f2)"],
-  ["phenom", "Rookie Phenoms", "Phenom", 10, 0, 0, 10, 0, "#ff7a2f", "#2e1204", "rgba(255,130,50,0.95)", "linear-gradient(180deg, #fff0e2, #ffc79f)"],
-  ["gold", "Gold", "Gold", 140, 140, 250, 135, 0, "#e0b23a", "#3a2a08", "rgba(240,196,64,0.95)", "linear-gradient(180deg, #fff6d0, #f0d37a)"],
+  ["base", "Base", "Base", 496, 484.9, 355.9, 675.9, 0, "#c8c2b4", "#2a2a28", "transparent", "linear-gradient(180deg, #fbf8f1, #e7e1d4)"],
+  ["silver", "Silver Parallel", "Silver", 240, 221, 385, 150, 745.9, "#b8c0c8", "#1c242c", "rgba(192,206,220,0.85)", "linear-gradient(180deg, #f4f7fb, #d5dce6)"],
+  ["kings", "Gridiron Kings", "Kings", 10, 40, 10, 10, 0, "#9a63ff", "#f3e9ff", "rgba(160,110,255,0.95)", "linear-gradient(180deg, #f1e6ff, #cdb0ff)"],
+  ["walls", "Defensive Walls", "Walls", 10, 40, 10, 10, 0, "#27b6d6", "#06222b", "rgba(40,190,225,0.9)", "linear-gradient(180deg, #e2f9ff, #a9e4f2)"],
+  ["phenom", "Rookie Phenoms", "Phenom", 30, 0.1, 0.1, 0.1, 0.1, "#ff7a2f", "#2e1204", "rgba(255,80,30,1)", "linear-gradient(180deg, #fff4d6, #ff7a2f 40%, #ff3b6e)"],
+  ["gold", "Gold", "Gold", 140, 140, 140, 135, 0, "#e0b23a", "#3a2a08", "rgba(240,196,64,0.95)", "linear-gradient(180deg, #fff6d0, #f0d37a)"],
   ["potw", "Player of the Week", "POTW", 4, 4, 4, 4, 250, "#1fd37a", "#04281a", "rgba(40,235,130,0.95)", "linear-gradient(180deg, #eafff3, #b6f2d0)"],
-  ["auto", "Autograph", "Auto", 55, 55, 150, 14, 0, "#6ee0c4", "#083028", "rgba(80,230,190,0.95)", "linear-gradient(180deg, #f3fff9, #d9f3ea)"],
-  ["super", "1/1 Superfractal", "1/1", 15, 15, 50, 1, 4, "#d46cff", "#fbeaff", "rgba(210,120,255,1)", "linear-gradient(135deg, #3b0a4a 0%, #1a1040 35%, #0d2a3a 70%, #3a0a2a 100%)"],
+  ["auto", "Autograph", "Auto", 55, 55, 70, 14, 0, "#6ee0c4", "#083028", "rgba(80,230,190,0.95)", "linear-gradient(180deg, #f3fff9, #d9f3ea)"],
+  ["super", "1/1 Superfractal", "1/1", 15, 15, 25, 1, 4, "#d46cff", "#fbeaff", "rgba(210,120,255,1)", "linear-gradient(135deg, #3b0a4a 0%, #1a1040 35%, #0d2a3a 70%, #3a0a2a 100%)"],
 ] as [RarityId, string, string, number, number, number, number, number, string, string, string, string][]).map(([id, name, short, r, s, l, t, w, frame, ink, glow, bg], i) => ({ id, name, short, tenths: { rookie: r, stars: s, legends: l, standard: t, potw: w, boom: BOOM_TENTHS[id] ?? 0, season: SEASON_TENTHS[id] ?? 0, free: FREE_TENTHS[id] ?? 0 }, rank: i + 1, frame, ink, glow, bg }));
 const RB = Object.fromEntries(RARITIES.map((r) => [r.id, r])) as Record<RarityId, Rarity>;
 
 const PACKS: Pack[] = [
   { id: "standard", name: "Standard Pack", hint: "All players", blurb: "The whole set at regular odds. No chase cards.", bg: "repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0 1px, rgba(0,0,0,0.05) 1px 3px), linear-gradient(165deg, #1e2429 0%, #8e98a3 45%, #39414a 100%)", trim: "#e6ebf0", thumb: "1", price: 10 },
-  { id: "rookie", name: "Rising Stars Pack", hint: "80+", blurb: "Young standouts from across the league.", bg: "linear-gradient(165deg, #061a40 0%, #2f7bff 45%, #0a2c78 100%)", trim: "#cfe2ff", thumb: "9", price: 75 },
-  { id: "stars", name: "Stars Pack", hint: "80+", blurb: "Today's established stars from across the league.", bg: "linear-gradient(165deg, #3a0612 0%, #e0314f 45%, #5a0a1f 100%)", trim: "#ffd0d8", thumb: "15", price: 75 },
-  { id: "legends", name: "Legends Pack", hint: "88+", blurb: "Retired all-time greats, three from each team. Best odds in the set.", bg: "linear-gradient(165deg, #4a3408 0%, #f0c44a 40%, #8a5a10 100%)", trim: "#fff3c0", thumb: "88", price: 300 },
+  { id: "rookie", name: "Rising Stars Pack", hint: "80+", blurb: "Young standouts from across the league, and the best shot at Rookie Phenoms.", bg: "linear-gradient(165deg, #061a40 0%, #2f7bff 45%, #0a2c78 100%)", trim: "#cfe2ff", thumb: "9", price: 75 },
+  { id: "stars", name: "Stars Pack", hint: "80+", blurb: "Today's established stars, with a much better shot at Gridiron Kings and Defensive Walls.", bg: "linear-gradient(165deg, #3a0612 0%, #e0314f 45%, #5a0a1f 100%)", trim: "#ffd0d8", thumb: "15", price: 75 },
+  { id: "legends", name: "Legends Pack", hint: "88+", blurb: "Retired all-time greats, three from each team.", bg: "linear-gradient(165deg, #4a3408 0%, #f0c44a 40%, #8a5a10 100%)", trim: "#fff3c0", thumb: "88", price: 300 },
   makeSeasonPack(),
   { id: "potw", name: "Player of the Week Pack", hint: "25% POTW", blurb: "25% green POTW cards, Silver from the whole set, and a small shot at 3 ★ chase 1/1s.", bg: "repeating-linear-gradient(90deg, rgba(255,255,255,0.07) 0 10px, rgba(0,0,0,0.05) 10px 20px), linear-gradient(165deg, #04301c 0%, #1fd37a 45%, #0a6b3c 100%)", trim: "#d6ffe9", thumb: "W", price: 50 },
   { id: "boom", name: "Boom or Bust Pack", hint: "Boom/Bust", blurb: "All-or-nothing: four in five pulls are a Bust; one in five is a Boom — an Autograph or 1/1.", bg: "linear-gradient(115deg, #0c0c10 0%, #0c0c10 47%, #e0141e 47%, #8f0a12 100%)", trim: "#ffb3a0", thumb: "B", price: 100 },
@@ -150,7 +150,7 @@ const poolOf = (id: PackId): Player[] => {
   return PLAYERS.filter((p) => p.packId === id);
 };
 const valuePoolOf = (id: PackId): Player[] => (id === "season" || id === "free" ? (id === "free" ? PLAYERS.concat(SEASON_PLAYERS) : SEASON_PLAYERS) : poolOf(id));
-// Insert sets: themed subsets drawn from the pack's own pool. Gridiron Kings are the top quarterbacks, Defensive Walls the top defenders, Rookie Phenoms the best young players (Rising Stars pack only).
+// Insert sets: Gridiron Kings are the top quarterbacks and Defensive Walls the top defenders, drawn from that pack's pool. Rookie Phenoms are the best young Rising Stars players; they mainly drop in the Rising Stars pack and are a 0.01% sliver in every other pack.
 const INSERT_POOL: Partial<Record<RarityId, (p: Player) => boolean>> = {
   kings: (p) => p.pos === "QB" && ratingOf(p) >= 75,
   walls: (p) => ["DE", "DT", "LB", "CB", "S"].includes(p.pos) && ratingOf(p) >= 82,
@@ -159,6 +159,10 @@ const INSERT_POOL: Partial<Record<RarityId, (p: Player) => boolean>> = {
 const poolCache: Record<string, Player[]> = {};
 const rpool = (id: PackId, r: RarityId, allSeasons = false): Player[] => {
   if (r === "potw") return POTW_PLAYERS;
+  if (r === "phenom") {
+    const k = "phenom|all";
+    return poolCache[k] ?? (poolCache[k] = PLAYERS.filter((p) => p.packId === "rookie" && ratingOf(p) >= 80));
+  }
   const base = allSeasons ? valuePoolOf(id) : poolOf(id);
   const f = INSERT_POOL[r];
   if (!f) return base;
@@ -260,7 +264,8 @@ const preValue = (p: Player, r: RarityId, via: PackId = p.packId): number => bas
 const FLOOR_V = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(RARITIES.filter((r) => r.tenths[id] > 0 || (RARITY_FLOOR[id][r.id] ?? 0) > 0).map((r) => [r.id, Math.min(...(rpool(id, r.id, true).length ? rpool(id, r.id, true) : poolOf(id)).map((p) => preValue(p, r.id, id)))]))])) as Record<PackId, Record<string, number>>;
 const valueOf = (p: Player, r: RarityId, via: PackId = p.packId): number => {
   // Gridiron Kings, Defensive Walls and Rookie Phenoms sell in a tight band around 200, the same in every pack they drop in.
-  if (isInsert(r)) return 190 + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 20);
+  if (r === "kings" || r === "walls") return 350 + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 100);
+  if (r === "phenom") return 1000 + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 500);
   // Rising Stars and Stars Gold cards sell in a tight band around the 70s.
   if (r === "gold" && (via === "rookie" || via === "stars")) {
     const pool = rpool(via, "gold", true);
@@ -298,6 +303,7 @@ function drawsForFree(r: RarityId): FreePull[] {
     for (const via of sourcePacksOf("potw")) { for (const p of POTW_PLAYERS) pulls.push({ player: p, via }); }
     return pulls;
   }
+  if (r === "phenom") return rpool("rookie", "phenom").map((p) => ({ player: p, via: "rookie" as PackId }));
   for (const via of sourcePacksOf(r)) { for (const p of rpool(via, r)) pulls.push({ player: p, via }); }
   return pulls;
 }
@@ -483,7 +489,7 @@ function makeDrawn(player: Player, rarity: RarityId, packId: PackId, via?: PackI
   return c;
 }
 function drawCard(packId: PackId, takenSuper: Set<string>): Card {
-  const roll = Math.floor(Math.random() * 1000);
+  const roll = Math.random() * 1000;
   let acc = 0;
   let rarity: RarityId = "base";
   for (const r of RARITIES) { acc += r.tenths[packId]; if (roll < acc) { rarity = r.id; break; } }
@@ -1059,7 +1065,7 @@ const WASH: Record<RarityId, string> = {
   gold: "radial-gradient(circle at 50% 42%, rgba(255,232,140,0.88), rgba(230,150,30,0.42) 48%, rgba(80,40,0,0.16) 74%, transparent 86%)",
   kings: "radial-gradient(circle at 50% 42%, rgba(224,200,255,0.82), rgba(130,80,230,0.38) 48%, transparent 80%)",
   walls: "radial-gradient(circle at 50% 42%, rgba(200,244,255,0.82), rgba(30,170,205,0.38) 48%, transparent 80%)",
-  phenom: "radial-gradient(circle at 50% 42%, rgba(255,226,196,0.85), rgba(255,120,40,0.4) 48%, transparent 80%)",
+  phenom: "radial-gradient(circle at 50% 42%, rgba(255,245,210,0.95), rgba(255,120,40,0.55) 42%, rgba(255,40,90,0.35) 68%, transparent 86%)",
   potw: "radial-gradient(circle at 50% 42%, rgba(214,255,232,0.9), rgba(40,235,130,0.48) 46%, rgba(4,70,38,0.2) 72%, transparent 86%)",
   auto: "radial-gradient(circle at 50% 40%, rgba(180,255,230,0.7), rgba(80,180,255,0.38) 38%, rgba(200,80,255,0.28) 62%, transparent 84%)",
   super: "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.7), rgba(200,90,255,0.5) 32%, rgba(40,0,70,0.42) 64%, transparent 86%)",
@@ -1069,13 +1075,15 @@ const RAYS: Partial<Record<RarityId, [string, string, number, number]>> = {
   potw: ["rgba(40,235,130,0) 0deg, rgba(120,255,190,0.7) 6deg, rgba(40,235,130,0) 12deg", "6s", 600, 0.85],
   auto: ["rgba(255,80,140,0) 0deg, rgba(255,90,140,0.65) 5deg, rgba(80,255,180,0) 10deg, rgba(80,200,255,0.65) 15deg, rgba(200,80,255,0) 20deg", "5.5s", 620, 0.8],
   super: ["rgba(255,80,140,0) 0deg, rgba(255,80,140,0.8) 4deg, rgba(255,200,60,0) 8deg, rgba(60,255,160,0.8) 12deg, rgba(60,180,255,0) 16deg, rgba(180,80,255,0.85) 20deg, rgba(255,80,140,0) 24deg", "4.2s", 680, 0.9],
+  phenom: ["rgba(255,80,40,0) 0deg, rgba(255,210,80,0.8) 6deg, rgba(255,40,90,0) 12deg, rgba(140,60,255,0.75) 18deg, rgba(255,80,40,0) 24deg", "4.6s", 640, 0.9],
 };
 
 function burstFx(r: RarityId, seed: string): ReactNode {
   if (r === "base") return <>{ring("a", 160, "3px solid rgba(255,255,255,0.9)", "glRipple", sp("0.85s", "0.45s"))}{ring("b", 160, "2px solid rgba(255,255,255,0.5)", "glRipple", sp("1.05s", "0.55s"), 0.08)}<Burst kind="puff" seed={seed} count={10} /></>;
   if (r === "silver") return <>{ring("a", 150, "2px solid rgba(220,232,245,0.9)", "glBurstRing", sp("0.8s", "0.45s"))}<Burst kind="spark" seed={seed} count={18} colors={SILVER} /></>;
   if (r === "gold") return <>{disc(220, "radial-gradient(circle, rgba(255,240,180,0.9), rgba(255,200,60,0.35) 46%, transparent 70%)", "glFlashHard " + sp("0.9s", "0.5s") + " ease forwards")}<Burst kind="spark" seed={seed} count={24} colors={GOLDP} /></>;
-  if (r === "kings" || r === "walls" || r === "phenom") { const c = INSERT_FX[r] ?? []; return <>{ring("a", 130, "3px solid " + (c[0] ?? "#fff"), "glBurstRing", sp("0.9s", "0.5s"))}{ring("b", 110, "2px solid " + (c[1] ?? "#fff"), "glBurstRing", sp("1.1s", "0.6s"), 0.1)}<Burst kind="spark" seed={seed} count={20} colors={c.slice(2)} /></>; }
+  if (r === "kings" || r === "walls") { const c = INSERT_FX[r] ?? []; return <>{ring("a", 130, "3px solid " + (c[0] ?? "#fff"), "glBurstRing", sp("0.9s", "0.5s"))}{ring("b", 110, "2px solid " + (c[1] ?? "#fff"), "glBurstRing", sp("1.1s", "0.6s"), 0.1)}<Burst kind="spark" seed={seed} count={20} colors={c.slice(2)} /></>; }
+  if (r === "phenom") return <>{disc(260, "radial-gradient(circle, rgba(255,245,200,0.95), rgba(255,120,40,0.55) 40%, rgba(255,40,90,0.3) 62%, transparent 76%)", "glFlashHard " + sp("0.85s", "0.5s") + " ease forwards")}{ring("a", 150, "5px solid rgba(255,210,80,0.95)", "glBurstRing", sp("1s", "0.55s"))}{ring("b", 150, "4px solid rgba(255,60,110,0.9)", "glBurstRing", sp("1.2s", "0.65s"), 0.08)}{ring("c", 150, "3px solid rgba(140,60,255,0.85)", "glBurstRing", sp("1.4s", "0.75s"), 0.16)}<Burst kind="spark" seed={seed + "s"} count={32} colors={INSERT_FX.phenom.slice(2).concat(["#ffd24a", "#ff3b6e", "#7c2bff"])} /><Burst kind="confetti" seed={seed + "c"} count={28} colors={["#ff7a2f", "#ffd24a", "#ff3b6e", "#7c2bff", "#ffffff"]} /><div style={{ ...ABS, left: "50%", top: "46%", fontSize: 64, lineHeight: 1, animation: "glTrophy " + sp("1.4s", "0.75s") + " ease-out forwards" }}>✦</div></>;
   if (r === "potw") return <>{disc(240, "radial-gradient(circle, rgba(220,255,236,0.95), rgba(40,235,130,0.45) 46%, transparent 70%)", "glFlashHard " + sp("0.9s", "0.5s") + " ease forwards")}{ring("a", 140, "4px solid rgba(60,240,140,0.95)", "glBurstRing", sp("1s", "0.5s"))}{ring("b", 140, "3px solid rgba(220,255,236,0.9)", "glBurstRing", sp("1.2s", "0.6s"), 0.1)}<Burst kind="confetti" seed={seed + "c"} count={30} colors={POTWP} /><Burst kind="spark" seed={seed + "s"} count={18} colors={POTWP} /><div style={{ ...ABS, left: "50%", top: "46%", fontSize: 60, lineHeight: 1, animation: "glTrophy " + sp("1.3s", "0.7s") + " ease-out forwards" }}>🏆</div></>;
   if (r === "auto") return <>{ring("a", 130, "4px solid rgba(120,255,220,0.9)", "glBurstRing", sp("0.95s", "0.5s"))}{ring("b", 130, "3px solid rgba(80,180,255,0.8)", "glBurstRing", sp("1.15s", "0.6s"), 0.1)}<Burst kind="spark" seed={seed + "s"} count={22} /><Burst kind="confetti" seed={seed + "c"} count={20} /></>;
   return (
@@ -1113,12 +1121,12 @@ function hexA(hex: string, a: number): string {
 }
 function teamScale(r: RarityId): number {
   if (r === "base" || r === "silver") return 0.7;
-  if (r === "gold" || r === "potw" || r === "auto" || r === "super") return 1.2;
+  if (r === "gold" || r === "potw" || r === "auto" || r === "super" || r === "phenom") return 1.2;
   return 0.9;
 }
 function teamDur(r: RarityId): number {
   if (r === "base" || r === "silver") return 1.05;
-  if (r === "gold" || r === "potw" || r === "auto" || r === "super") return 1.45;
+  if (r === "gold" || r === "potw" || r === "auto" || r === "super" || r === "phenom") return 1.45;
   return 1.25;
 }
 function TeamFx(p: { team: Team; rarity: RarityId; token: number }): ReactNode {
@@ -1170,7 +1178,7 @@ const SCREEN_TINT: Record<RarityId, { bg: string; edge: string; spread: string; 
   gold: { bg: "radial-gradient(circle at 50% 45%, rgba(255,240,170,0.92), rgba(255,196,60,0.62) 50%, rgba(255,140,0,0.34) 100%)", edge: "rgba(255,200,70,0.85)", spread: "0 0 110px 40px", dur: 1.8 },
   kings: { bg: "radial-gradient(circle at 50% 45%, rgba(230,210,255,0.78), rgba(140,90,240,0.45) 55%, rgba(40,10,90,0.3) 100%)", edge: "rgba(170,120,255,0.75)", spread: "0 0 90px 30px", dur: 1.6 },
   walls: { bg: "radial-gradient(circle at 50% 45%, rgba(210,246,255,0.78), rgba(40,180,215,0.45) 55%, rgba(6,50,70,0.3) 100%)", edge: "rgba(60,200,235,0.75)", spread: "0 0 90px 30px", dur: 1.6 },
-  phenom: { bg: "radial-gradient(circle at 50% 45%, rgba(255,232,205,0.8), rgba(255,130,50,0.45) 55%, rgba(90,30,0,0.3) 100%)", edge: "rgba(255,150,70,0.8)", spread: "0 0 90px 30px", dur: 1.6 },
+  phenom: { bg: "radial-gradient(circle at 50% 45%, rgba(255,245,210,0.95), rgba(255,130,40,0.7) 42%, rgba(255,40,90,0.55) 70%, rgba(80,0,40,0.5) 100%)", edge: "rgba(255,200,80,0.95)", spread: "0 0 130px 50px", dur: 2.6 },
   potw: { bg: "radial-gradient(circle at 50% 45%, rgba(214,255,232,0.9), rgba(40,235,130,0.58) 46%, rgba(4,70,38,0.5) 100%)", edge: "rgba(60,255,150,0.9)", spread: "0 0 120px 44px", dur: 2.1 },
   auto: { bg: "radial-gradient(circle at 50% 45%, rgba(190,255,235,0.8), rgba(80,190,255,0.5) 42%, rgba(210,90,255,0.4) 100%)", edge: "rgba(120,255,220,0.8)", spread: "0 0 110px 40px", dur: 2.4 },
   super: { bg: "radial-gradient(circle at 50% 45%, rgba(255,255,255,0.9), rgba(210,100,255,0.6) 38%, rgba(30,0,60,0.55) 100%)", edge: "rgba(255,120,220,0.9)", spread: "0 0 130px 50px", dur: 3 },
@@ -1188,6 +1196,7 @@ function ScreenFx(p: { r: RarityId; token: number; dal: boolean; boom?: boolean;
       {p.boom ? <div style={{ ...fill, background: "radial-gradient(circle at 50% 45%, rgba(255,244,176,0.95), rgba(255,90,20,0.72) 34%, rgba(120,0,8,0.62) 100%)", animation: calm ? anim : "glScreenWhite 1.2s ease-out forwards" }} /> : null}
       {p.boom && !calm ? <><div style={{ position: "absolute", left: "50%", top: "45%", width: 0, height: 0, transform: "scale(3.2)" }}><Burst kind="spark" seed={"sb" + p.token} count={44} colors={BOOMP} /></div><div style={{ position: "absolute", left: "50%", top: "45%", fontSize: "min(52vmin, 320px)", lineHeight: 1, animation: "glTrophy 1.7s ease-out forwards" }}>💥</div></> : null}
       {p.r === "potw" && !calm ? <><div style={{ position: "absolute", left: "50%", top: "45%", width: 0, height: 0, transform: "scale(2.6)" }}><Burst kind="confetti" seed={"sc" + p.token} count={36} colors={POTWP} /></div><div style={{ position: "absolute", left: "50%", top: "45%", fontSize: "min(34vmin, 200px)", lineHeight: 1, animation: "glTrophy 1.7s ease-out forwards" }}>🏆</div></> : null}
+      {p.r === "phenom" && !calm ? <><div style={{ ...fill, background: "#fff4d0", animation: "glScreenWhite 0.85s ease-out forwards" }} /><div style={{ position: "absolute", left: "50%", top: "45%", width: 0, height: 0, transform: "scale(2.8)" }}><Burst kind="spark" seed={"sp" + p.token} count={40} colors={["#ff7a2f", "#ffd24a", "#ff3b6e", "#7c2bff", "#ffffff"]} /></div><div style={{ position: "absolute", left: "50%", top: "45%", fontSize: "min(40vmin, 240px)", lineHeight: 1, animation: "glTrophy 1.7s ease-out forwards" }}>✦</div></> : null}
       {p.dal ? <div style={{ ...fill, background: "radial-gradient(circle at 50% 45%, rgba(4,30,66,0) 30%, rgba(4,30,66,0.55) 100%)", boxShadow: "inset 0 0 70px 18px rgba(134,147,151,0.75)", animation: anim }} /> : null}
     </div>
   );
@@ -1232,6 +1241,8 @@ const CSS = `
 @keyframes glPulseFrame{0%,100%{box-shadow:0 0 14px 5px rgba(210,120,255,.7),0 0 44px rgba(255,80,200,.4)}50%{box-shadow:0 0 32px 10px rgba(120,220,255,.95),0 0 72px rgba(255,200,80,.55)}}
 @keyframes glFlashHard{0%{opacity:0}6%{opacity:1}100%{opacity:0}}
 @keyframes glPotwGlow{0%,100%{box-shadow:0 0 12px rgba(40,235,130,.6),0 0 24px rgba(40,235,130,.28)}50%{box-shadow:0 0 24px rgba(140,255,200,1),0 0 46px rgba(40,235,130,.65)}}
+@keyframes glChaseGlow{0%,100%{box-shadow:0 0 14px 4px rgba(255,215,106,.75),0 0 32px rgba(180,80,255,.55),0 0 52px rgba(60,200,255,.35)}50%{box-shadow:0 0 26px 10px rgba(255,255,210,1),0 0 54px rgba(255,80,200,.85),0 0 80px rgba(80,220,255,.7)}}
+@keyframes glPhenomGlow{0%,100%{box-shadow:0 0 16px rgba(255,120,40,.75),0 0 32px rgba(255,210,80,.45)}50%{box-shadow:0 0 32px rgba(255,240,160,1),0 0 58px rgba(255,40,90,.75),0 0 80px rgba(255,140,20,.6)}}
 @keyframes glTrophy{0%{transform:translate(-50%,-50%) scale(.2);opacity:0}22%{opacity:1}70%{opacity:1}100%{transform:translate(-50%,-50%) scale(1.6);opacity:0}}
 @keyframes glScreenFlash{0%{opacity:0}7%{opacity:1}100%{opacity:0}}
 @keyframes glScreenSoft{0%{opacity:0}30%{opacity:.55}100%{opacity:0}}
@@ -1302,7 +1313,7 @@ const BOOMP = ["#ff3b1f", "#ffb000", "#fff1a8", "#ffffff", "#ff6a2a", "#8f0a12"]
 const FINISH: Partial<Record<RarityId, string>> = {
   kings: "linear-gradient(135deg, #f1e6ff, #9a63ff 30%, #ffd76a 52%, #9a63ff 74%, #e6d4ff)",
   walls: "repeating-linear-gradient(0deg, #bff0ff 0 7px, #1f9fbf 7px 9px)",
-  phenom: "linear-gradient(135deg, #fff0e2, #ff7a2f 35%, #ffd24a 55%, #ff4d6d 80%)",
+  phenom: "linear-gradient(135deg, #fff4d0, #ff7a2f 28%, #ffd24a 50%, #ff3b6e 72%, #7c2bff)",
   silver: "repeating-linear-gradient(100deg, #f4f6f8 0 3px, #aab3bd 3px 6px, #dfe4e9 6px 9px)",
   gold: "linear-gradient(135deg, #fff3b0, #e0b030 35%, #fff0a0 55%, #b8860b)",
   potw: "linear-gradient(135deg, #eafff3, #19d27a 28%, #067a40 50%, #8dffc2 72%, #0fb866)",
@@ -1340,18 +1351,24 @@ function PosBadge(p: { pos: string; compact?: boolean }): ReactNode {
 }
 
 function chrome(card: Card, compact: boolean, font: string): { wrap: CSSProperties; inner: CSSProperties } {
-  const r = skin(card), sup = card.rarity === "super";
-  const anim = sup ? "glRainbow " + sp("3s", "8s") + " linear infinite" : card.rarity === "gold" ? "glGoldGlow " + sp("1.8s", "3.6s") + " ease-in-out infinite" : card.rarity === "potw" ? "glPotwGlow " + sp("1.6s", "3.2s") + " ease-in-out infinite" : card.rarity === "auto" ? "glGlowPulse " + sp("1.8s", "3.6s") + " ease-in-out infinite" : undefined;
+  const r = skin(card), sup = card.rarity === "super", chase = isChaseCard(card), phen = card.rarity === "phenom";
+  const anim = chase ? "glRainbow " + sp("2.2s", "6s") + " linear infinite, glChaseGlow " + sp("1.5s", "3s") + " ease-in-out infinite"
+    : phen ? "glRainbow " + sp("2.4s", "6.5s") + " linear infinite, glPhenomGlow " + sp("1.4s", "2.8s") + " ease-in-out infinite"
+    : sup ? "glRainbow " + sp("3s", "8s") + " linear infinite"
+    : card.rarity === "gold" ? "glGoldGlow " + sp("1.8s", "3.6s") + " ease-in-out infinite"
+    : card.rarity === "potw" ? "glPotwGlow " + sp("1.6s", "3.2s") + " ease-in-out infinite"
+    : card.rarity === "auto" ? "glGlowPulse " + sp("1.8s", "3.6s") + " ease-in-out infinite" : undefined;
+  const wrapBg = chase ? RAINBOW : phen ? "linear-gradient(135deg, #fff4d0, #ff7a2f 28%, #ffd24a 50%, #ff3b6e 72%, #7c2bff)" : (FINISH[card.rarity] ?? r.frame);
   return {
-    wrap: { width: "100%", height: "100%", boxSizing: "border-box", borderRadius: 10, padding: compact ? 5 : 7, background: FINISH[card.rarity] ?? r.frame, backgroundSize: card.rarity === "auto" ? "300% 100%" : sup ? "200% 200%" : undefined, animation: anim, boxShadow: card.rarity === "base" ? "0 2px 8px rgba(0,0,0,0.18)" : "0 0 14px " + r.glow, color: r.ink, fontFamily: font, display: "flex", flexDirection: "column", position: "relative" },
-    inner: { flex: 1, minHeight: 0, background: r.bg, borderRadius: 7, border: (sup ? 4 : card.rarity === "base" ? 2 : 3) + "px solid " + (sup ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.08)"), display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" },
+    wrap: { width: "100%", height: "100%", boxSizing: "border-box", borderRadius: chase ? 12 : 10, padding: compact ? (chase ? 6 : 5) : (chase ? 8 : 7), background: wrapBg, backgroundSize: chase || phen || card.rarity === "auto" || sup ? "300% 100%" : undefined, animation: anim, boxShadow: chase || phen ? undefined : card.rarity === "base" ? "0 2px 8px rgba(0,0,0,0.18)" : "0 0 14px " + r.glow, color: r.ink, fontFamily: font, display: "flex", flexDirection: "column", position: "relative" },
+    inner: { flex: 1, minHeight: 0, background: r.bg, borderRadius: chase ? 6 : 7, border: (chase ? 3 : sup ? 4 : card.rarity === "base" ? 2 : 3) + "px solid " + (chase ? "rgba(255,215,106,0.95)" : sup ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.08)"), boxShadow: chase ? "inset 0 0 0 2px rgba(255,255,255,0.45)" : undefined, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" },
   };
 }
 
 const FOIL: Partial<Record<RarityId, CSSProperties>> = {
   kings: { background: "linear-gradient(115deg, transparent 20%, rgba(255,230,160,0.45) 44%, rgba(255,255,255,0.6) 50%, transparent 76%)", backgroundSize: "250% 100%" },
   walls: { background: "linear-gradient(115deg, transparent 20%, rgba(160,240,255,0.45) 44%, rgba(255,255,255,0.6) 50%, transparent 76%)", backgroundSize: "250% 100%" },
-  phenom: { background: "linear-gradient(115deg, transparent 20%, rgba(255,210,120,0.5) 44%, rgba(255,255,255,0.6) 50%, transparent 76%)", backgroundSize: "250% 100%" },
+  phenom: { mixBlendMode: "overlay", opacity: 0.8, background: "linear-gradient(120deg, rgba(255,80,40,0.55), rgba(255,220,80,0.7), rgba(255,255,255,0.85), rgba(255,60,120,0.55), rgba(140,60,255,0.5), rgba(255,80,40,0.55))", backgroundSize: "300% 100%" },
   silver: { background: "linear-gradient(115deg, transparent 28%, rgba(255,255,255,0.7) 50%, transparent 72%)", backgroundSize: "220% 100%" },
   gold: { background: "linear-gradient(115deg, transparent 12%, rgba(255,230,140,0.28) 32%, rgba(255,255,255,0.7) 50%, rgba(255,210,80,0.35) 68%, transparent 86%)", backgroundSize: "250% 100%" },
   potw: { background: "linear-gradient(115deg, transparent 18%, rgba(190,255,220,0.5) 38%, rgba(255,255,255,0.85) 50%, rgba(120,255,190,0.5) 62%, transparent 82%)", backgroundSize: "250% 100%" },
@@ -1359,7 +1376,7 @@ const FOIL: Partial<Record<RarityId, CSSProperties>> = {
   super: { mixBlendMode: "overlay", opacity: 0.65, background: RAINBOW, backgroundSize: "300% 300%" },
 };
 const FOIL_ANIM: Record<RarityId, [string, string, string]> = {
-  base: ["", "", ""], kings: ["glHoloSweep", "2s ease-in-out", "6s ease-in-out"], walls: ["glHoloSweep", "2s ease-in-out", "6s ease-in-out"], phenom: ["glHoloSweep", "2s ease-in-out", "6s ease-in-out"], potw: ["glHoloSweep", "1.6s linear", "4.5s linear"], silver: ["glHoloSweep", "2.2s ease-in-out", "6s ease-in-out"], gold: ["glHoloSweep", "1.8s linear", "5.5s linear"],
+  base: ["", "", ""], kings: ["glHoloSweep", "2s ease-in-out", "6s ease-in-out"], walls: ["glHoloSweep", "2s ease-in-out", "6s ease-in-out"], phenom: ["glFoilDrift", "1.6s linear", "4.5s linear"], potw: ["glHoloSweep", "1.6s linear", "4.5s linear"], silver: ["glHoloSweep", "2.2s ease-in-out", "6s ease-in-out"], gold: ["glHoloSweep", "1.8s linear", "5.5s linear"],
   auto: ["glFoilDrift", "2.4s linear", "7s linear"], super: ["glPrism", "3s linear", "8s linear"],
 };
 
@@ -1397,10 +1414,12 @@ function CardFace(p: { card: Card; compact?: boolean }): ReactNode {
           <div style={{ fontSize: c ? 8 : 10, marginTop: 2, opacity: 0.8 }}>{team.name}</div>
           <div style={{ fontSize: c ? 7 : 9, marginTop: 3, fontWeight: 800, opacity: 0.95, lineHeight: 1.2 }}>Pull {formatPct(exactChance(card))} · {RB[card.rarity].short} {formatPct(rarityPct(card))}</div>
         </div>
+        {isChaseCard(card) ? <div style={{ flexShrink: 0, margin: c ? "0 6px 2px" : "2px 8px 5px", padding: c ? "1px 3px" : "3px 6px", borderRadius: 6, background: RAINBOW, backgroundSize: "200% 100%", animation: "glRainbow " + sp("2.2s", "6s") + " linear infinite", border: "1px solid rgba(255,215,106,0.95)", color: "#1a0a2a", textAlign: "center", fontWeight: 900, fontSize: c ? 6.5 : 9, letterSpacing: c ? 0.3 : 0.8, lineHeight: 1.1, whiteSpace: "nowrap", textShadow: "0 0 4px rgba(255,255,255,0.8)" }}>★ CHASE 1/1 ★</div> : null}
+        {card.rarity === "phenom" ? <div style={{ flexShrink: 0, margin: c ? "0 6px 2px" : "2px 8px 5px", padding: c ? "1px 3px" : "3px 6px", borderRadius: 6, background: "linear-gradient(90deg, #ff3b1f, #ffd24a, #ff3b6e, #7c2bff, #ff3b1f)", backgroundSize: "200% 100%", animation: "glRainbow " + sp("1.8s", "5s") + " linear infinite", border: "1px solid rgba(255,240,180,0.9)", color: "#2b0a00", textAlign: "center", fontWeight: 900, fontSize: c ? 6.5 : 9, letterSpacing: c ? 0.3 : 0.8, lineHeight: 1.1, whiteSpace: "nowrap" }}>✦ ROOKIE PHENOM ✦</div> : null}
         {card.rarity === "potw" ? <div style={{ flexShrink: 0, margin: c ? "0 6px 2px" : "2px 8px 5px", padding: c ? "1px 3px" : "3px 6px", borderRadius: 6, background: "linear-gradient(90deg, #0b6b3a, #1fd37a, #0b6b3a)", border: "1px solid rgba(255,255,255,0.7)", color: "#ffffff", textAlign: "center", fontWeight: 900, fontSize: c ? 6.5 : 9, letterSpacing: c ? 0.4 : 1, lineHeight: 1.1, whiteSpace: "nowrap" }}>★ PLAYER OF THE WEEK ★</div> : null}
         {card.rarity === "auto" || card.rarity === "super" ? <div style={{ flexShrink: 0, margin: c ? "0 6px 2px" : "2px 8px 5px", padding: c ? "0 3px" : "1px 6px", borderRadius: 6, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(0,0,0,0.18)" }}><Signature name={player.name} ink="#0b1f4a" compact={c} /></div> : null}
         <div style={{ ...row, fontSize: c ? 7 : 9, letterSpacing: c ? 0.2 : 0.4, padding: c ? "3px 6px 5px" : "4px 8px 6px", fontWeight: 700, position: "relative", zIndex: 2 }}>
-          <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>{c && r.name.length > 9 ? r.short : r.name}</span><span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, marginLeft: 4 }}>{card.rarity === "super" ? "1 of 1" : c ? PB[originPack(card)].name.replace(" Pack", "") : PB[originPack(card)].name}</span>
+          <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>{c && r.name.length > 9 ? r.short : r.name}</span><span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, marginLeft: 4 }}>{isChaseCard(card) ? "CHASE 1 of 1" : card.rarity === "super" ? "1 of 1" : c ? PB[originPack(card)].name.replace(" Pack", "") : PB[originPack(card)].name}</span>
         </div>
         {foil ? <div style={{ ...ABS, ...foil, inset: 0, borderRadius: 7, zIndex: 3, animation: fa[0] + " " + sp(fa[1], fa[2]) + " infinite" }} /> : null}
       </div>
@@ -1477,7 +1496,7 @@ function FlipCard(p: { card: RCard; onFlip?: () => void; charged?: boolean; burs
       aria-label={!flipped ? "Flip card" : stats ? "Flip back to the front of " + name : "Show game ratings for " + name}
       style={{ width: "100%", height: 300, position: "relative", zIndex: 2, animation: motion, borderRadius: 12 }}
     >
-      <div className="gl-scene" style={{ width: "100%", height: "100%", borderRadius: 12, animation: flipped && r === "super" ? "glPulseFrame " + sp("1.15s", "2.2s") + " ease-in-out infinite" : undefined }}>
+      <div className="gl-scene" style={{ width: "100%", height: "100%", borderRadius: 12, animation: flipped && isChaseCard(p.card) ? "glChaseGlow " + sp("1.2s", "2.4s") + " ease-in-out infinite" : flipped && r === "super" ? "glPulseFrame " + sp("1.15s", "2.2s") + " ease-in-out infinite" : flipped && r === "phenom" ? "glPhenomGlow " + sp("1.2s", "2.4s") + " ease-in-out infinite" : undefined }}>
         <div className={"gl-flip" + (flipped && stats ? " gl-stats" : flipped ? " gl-on" : "") + (r === "super" ? " gl-super" : "")} style={{ width: "100%", height: "100%" }}>
           <div className="gl-face">{flipped ? <CardStats card={p.card} /> : <CardBack packId={originPack(p.card)} season={playerOf(p.card.playerId).season} />}</div>
           <div className="gl-face gl-front">
@@ -1579,7 +1598,7 @@ function ChaseRow(p: { packId: PackId; supers: string[]; season?: SeasonId }): R
           const card: Card = { uid: "chase-" + pl.id, playerId: pl.id, rarity: "super", packId: p.packId, seq: 0 };
           return (
             <div key={pl.id} style={{ opacity: gone ? 0.55 : 1, filter: gone ? "grayscale(0.7)" : undefined }}>
-              <div style={{ height: 196, borderRadius: 12, boxShadow: gone ? "none" : "0 0 0 2px #ffd76a, 0 0 18px rgba(255,200,80,0.8)" }}><CardFace card={card} compact /></div>
+              <div style={{ height: 196, borderRadius: 12, boxShadow: gone ? "none" : "0 0 0 2px #ffd76a, 0 0 22px rgba(255,80,200,0.7), 0 0 36px rgba(80,200,255,0.45)", animation: gone ? undefined : "glChaseGlow " + sp("1.8s", "3.6s") + " ease-in-out infinite" }}><CardFace card={card} compact /></div>
               <div style={{ marginTop: 6, textAlign: "center", fontSize: 10, lineHeight: 1.35 }}>
                 <div style={{ fontWeight: 800 }}><span style={{ color: "#ffd76a" }}>★</span> 1 of 1 · {gone ? "Pulled" : "Available"}</div>
                 <div style={{ opacity: 0.85 }}>{money(cardVal(card))} · {formatPct(pullChance(card))}</div>
@@ -1597,7 +1616,7 @@ function MiniCard(p: { card: Card; count?: number; onRemove?: (c: Card) => void;
   return (
     <div style={{ position: "relative" }}>
       <button type="button" className="gl-btn" onClick={() => p.onInspect(p.card)} aria-label={"Enlarge " + name + " and flip for game ratings"} style={{ width: "100%", display: "block" }}>
-        <div style={{ height: 196 }}><CardFace card={p.card} compact /></div>
+        <div style={{ height: 196, borderRadius: 12, animation: isChaseCard(p.card) ? "glChaseGlow " + sp("1.8s", "3.6s") + " ease-in-out infinite" : p.card.rarity === "phenom" ? "glPhenomGlow " + sp("1.6s", "3.2s") + " ease-in-out infinite" : undefined }}><CardFace card={p.card} compact /></div>
       </button>
       {p.count !== undefined && p.count > 1 ? <div style={{ position: "absolute", top: -6, right: -4, minWidth: 22, height: 22, padding: "0 5px", borderRadius: 11, background: "#041E42", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>×{p.count}</div> : null}
       <div style={{ fontSize: 10, textAlign: "center", marginTop: 4, lineHeight: 1.3, opacity: 0.85 }}>{name}<div style={{ fontSize: 9, marginTop: 2, opacity: 0.75 }}>Value {money(cardVal(p.card))} · Tap to enlarge</div><div style={{ fontSize: 9, marginTop: 2, fontWeight: 700, opacity: 0.9 }}>{chanceText(p.card)}</div></div>
@@ -1962,7 +1981,7 @@ export default function GridironLegends() {
     const token = Date.now();
     setFx({ token, rarity, boom, bust });
     if (uid) setBurstUid(uid);
-    const wait = { base: 1300, silver: 1700, kings: 1800, walls: 1800, phenom: 1800, gold: 2000, potw: 2400, auto: 2600, super: 3200 }[rarity] + (boom ? 700 : 0);
+    const wait = { base: 1300, silver: 1700, kings: 1800, walls: 1800, phenom: 2800, gold: 2000, potw: 2400, auto: 2600, super: 3200 }[rarity] + (boom ? 700 : 0);
     window.setTimeout(() => {
       setFx((prev) => (prev && prev.token === token ? null : prev));
       if (uid) setBurstUid((cur) => (cur === uid ? null : cur));
@@ -2090,7 +2109,7 @@ export default function GridironLegends() {
     const gen = genRef.current;
     const r = reveal.rarity;
     setChargeUid(r === "gold" || isIns(r) || r === "potw" || r === "auto" || r === "super" ? reveal.uid : null);
-    const delay = rm() ? (r === "super" ? 700 : 280) : { base: 620, silver: 700, kings: 820, walls: 820, phenom: 820, gold: 800, potw: 900, auto: 950, super: 2000 }[r] + (sourceOf(reveal) === "boom" && (r === "auto" || r === "super") ? 500 : 0);
+    const delay = rm() ? (r === "super" || r === "phenom" ? 700 : 280) : { base: 620, silver: 700, kings: 820, walls: 820, phenom: 1400, gold: 800, potw: 900, auto: 950, super: 2000 }[r] + (sourceOf(reveal) === "boom" && (r === "auto" || r === "super") ? 500 : 0);
     const t = window.setTimeout(() => { if (genRef.current === gen) flipNow(); }, delay);
     return () => window.clearTimeout(t);
   }, [stage, reveal, flipNow]);
@@ -2460,7 +2479,7 @@ export default function GridironLegends() {
       {teamFx ? <TeamFx team={teamFx.team} rarity={teamFx.rarity} token={teamFx.token} /> : null}
       <div style={{ marginTop: -6 }}>
         <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.15, letterSpacing: 0.3, color: "#d4920a" }}>Version {VERSION}</div>
-        <div style={{ marginTop: 4, fontSize: 13, fontWeight: 700, letterSpacing: 0.2, color: "#ffe27a" }}>{"Chase Cards & Seasonal Packs Update"}</div>
+        <div style={{ marginTop: 4, fontSize: 13, fontWeight: 700, letterSpacing: 0.2, color: "#ffe27a" }}>{"Kings, Phenoms & Chase Update"}</div>
         <button type="button" onClick={saveNow} aria-label="Don't forget to save the game. Tap to save." style={{ appearance: "none", display: "inline-block", marginTop: 8, padding: "6px 12px", borderRadius: 999, border: "1px solid rgba(255,226,122,0.55)", background: "linear-gradient(180deg, #0b2447 0%, #07303a 100%)", color: "#ffe27a", font: "inherit", fontSize: 12, fontWeight: 700, lineHeight: 1.3, cursor: "pointer", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>Don't forget to save the game 😁</button>
         <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, opacity: 0.6 }}>Fan-made simulator. Not affiliated with the NFL or any card company.</div>
       </div>
@@ -2537,7 +2556,7 @@ export default function GridironLegends() {
                 </div>
               ))}
               <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700 }}>{oddsFocus === "free" ? <>Free · average card value {money(evOf("free"))}</> : <>Price {money(PB[oddsFocus].price)} · average card value {money(evOf(oddsFocus))} ({Math.round((evOf(oddsFocus) / PB[oddsFocus].price) * 100)}% of price)</>}</div>
-              <div style={{ fontSize: 12, marginTop: 8, opacity: 0.75 }}>{oddsFocus === "free" ? "Chance per pack. The Free Pack can pull any card obtainable in the game: every player and every rarity from Standard, Rising Stars, Stars, Legends, Player of the Week, Boom or Bust, and the current Season pack, including inserts, the POTW pack's 3 ★ chase 1/1s, and this season's 3 ★ chase 1/1s. Mostly Base and Silver, with a small shot at the rare stuff. Card values match the source pack (a Boom or Bust Base is a Bust). Owned chase 1/1s cannot be pulled again." : <>Chance per pack. The cheapest card in this pack is worth {money(Math.min(...poolOf(oddsFocus).map((p) => valueOf(p, oddsFocus === "potw" ? "silver" : "base", oddsFocus))))}{oddsFocus === "potw" ? "." : " and every 1/1 is worth at least " + money(oddsFocus === "boom" ? BOOM_FLOOR.super : 1000) + "."} Card values swing widely: most pulls are worth less than the pack, and a rare hit is worth far more. {oddsFocus === "standard" ? "The Standard pack draws from every player in the set. Player of the Week cards (green) can drop in any pack at 0.4%." : oddsFocus === "potw" ? "Silver cards come from every player in the set; Player of the Week cards come from this season's weekly award winners. A small share of pulls are 1/1s (taken from Silver; the 25% POTW chance is unchanged), and some of those 1/1s are one of this pack's 3 ★ chase 1/1s." : oddsFocus === "boom" ? "Boom or Bust draws from every player in the set. Base is the Bust, worth only a few coins. An Autograph or 1/1 is the Boom: every Auto is worth at least " + money(BOOM_FLOOR.auto) + " and every 1/1 at least " + money(BOOM_FLOOR.super) + ". A 1/1 here can also be one of the " + CHASE_IDS.size + " chase 1/1s. Player of the Week cards (green) drop at 0.4%." : oddsFocus === "season" ? "The Season pack draws from this season's themed player list. Base cards drop at 34%, with the other rarities rebalanced around that. Its three ★ chase 1/1s are unique to this season and cannot be pulled after the season changes (cards you already pulled stay in your binder). Player of the Week cards (green) can drop at 0.5%." : "Each pack draws only from its own player pool, never shared with the other packs. Player of the Week cards (green) can drop in any pack at 0.4%."}</>}</div>
+              <div style={{ fontSize: 12, marginTop: 8, opacity: 0.75 }}>{oddsFocus === "free" ? "Chance per pack. The Free Pack can pull any card obtainable in the game: every player and every rarity from Standard, Rising Stars, Stars, Legends, Player of the Week, Boom or Bust, and the current Season pack, including inserts, the POTW pack's 3 ★ chase 1/1s, and this season's 3 ★ chase 1/1s. Mostly Base and Silver. Rookie Phenoms are a 0.01% sliver here (they mainly drop in Rising Stars). Card values match the source pack (a Boom or Bust Base is a Bust). Owned chase 1/1s cannot be pulled again." : <>Chance per pack. The cheapest card in this pack is worth {money(Math.min(...poolOf(oddsFocus).map((p) => valueOf(p, oddsFocus === "potw" ? "silver" : "base", oddsFocus))))}{oddsFocus === "potw" ? "." : " and every 1/1 is worth at least " + money(oddsFocus === "boom" ? BOOM_FLOOR.super : 1000) + "."} Card values swing widely: most pulls are worth less than the pack, and a rare hit is worth far more. {oddsFocus === "standard" ? "The Standard pack draws from every player in the set. Player of the Week cards (green) can drop in any pack at 0.4%. Rookie Phenoms can drop in any pack at 0.01%; they are mainly found in Rising Stars (3%)." : oddsFocus === "potw" ? "Silver cards come from every player in the set; Player of the Week cards come from this season's weekly award winners. A small share of pulls are 1/1s (taken from Silver; the 25% POTW chance is unchanged), and some of those 1/1s are one of this pack's 3 ★ chase 1/1s. Rookie Phenoms can drop at 0.01%." : oddsFocus === "boom" ? "Boom or Bust draws from every player in the set. Base is the Bust, worth only a few coins. An Autograph or 1/1 is the Boom: every Auto is worth at least " + money(BOOM_FLOOR.auto) + " and every 1/1 at least " + money(BOOM_FLOOR.super) + ". A 1/1 here can also be one of the " + CHASE_IDS.size + " chase 1/1s. Player of the Week cards (green) drop at 0.4%. Rookie Phenoms can drop at 0.01%." : oddsFocus === "season" ? "The Season pack draws from this season's themed player list. Base cards drop at 34%, with the other rarities rebalanced around that. Its three ★ chase 1/1s are unique to this season and cannot be pulled after the season changes (cards you already pulled stay in your binder). Player of the Week cards (green) can drop at 0.5%. Rookie Phenoms can drop at 0.01%." : "Each pack draws only from its own player pool, never shared with the other packs, except Rookie Phenoms, which are always the top young Rising Stars players. Rising Stars has a 3% shot at a Rookie Phenom; every other pack has a 0.01% shot. The Stars pack has a 4% shot at Gridiron Kings and a 4% shot at Defensive Walls. Player of the Week cards (green) can drop in any pack at 0.4%."}</>}</div>
             </div>
           ) : null}
         </div>
