@@ -335,14 +335,15 @@ const chaseFamilyOf = (p: Player): ChaseFamily => {
   if (SEASON_CHASE_IDS.has(p.id)) return "season";
   return "stars";
 };
-const CHASE_BAND: Record<ChaseFamily, [number, number]> = { rookie: [3000, 4000], potw: [3400, 4300], season: [3600, 4600], stars: [4200, 5200], legends: [4800, 5450], rebirth: [5500, 6000] };
+const CHASE_BAND: Record<ChaseFamily, [number, number]> = { rookie: [3000, 4000], potw: [3400, 4300], season: [3600, 4600], stars: [4200, 5200], legends: [19000, 21000], rebirth: [5500, 6000] };
 const chasePeersOf = (fam: ChaseFamily): Player[] => (fam === "rebirth" ? RB_CHASE : fam === "potw" ? POTW_CHASE : fam === "season" ? ALL_SEASON_CHASE : CHASE[fam]);
 const chasePrestige = (p: Player): number => (POS_HYPE[p.pos] ?? 1) * ratingHype(ratingOf(p)) * (ELITE[p.name] ?? 1);
-// Named chase 1/1s sell in a prestige band of 3,000-6,000. Rebirth exclusives sit at the top of that range.
+// Named chase 1/1s sell in a prestige band of 3,000-6,000, except Legends chases (about 20,000) and the Tom Brady chase (exactly 50,000).
 const chaseValueOf = (p: Player): number => {
+  if (p.name === "Tom Brady") return 50000;
   const fam = chaseFamilyOf(p);
   const [lo, hi] = CHASE_BAND[fam];
-  const peers = chasePeersOf(fam);
+  const peers = chasePeersOf(fam).filter((x) => x.name !== "Tom Brady");
   const scores = (peers.length ? peers : [p]).map(chasePrestige);
   const loS = Math.min(...scores), hiS = Math.max(...scores);
   const t = hiS <= loS ? 0.5 : (chasePrestige(p) - loS) / (hiS - loS);
