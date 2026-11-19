@@ -103,8 +103,9 @@ const isRebirthPack = (id: PackId): boolean => id === "rb1" || id === "rb2" || i
 const UNLOCK_AT: Record<PackId, number> = { free: 0, standard: 0, rookie: 0, stars: 0, potw: 1, rb1: 1, season: 2, boom: 3, legends: 4, rb2: 5, rb3: 6 };
 const packUnlockAt = (id: PackId): number => UNLOCK_AT[id] ?? 0;
 const isPackUnlocked = (id: PackId, rebirth: number): boolean => rebirth >= packUnlockAt(id);
-const REBIRTH_REQ = [2000, 5000, 10000, 20000, 40000, 75000, 140000];
-const rebirthReq = (n: number): number => (n < REBIRTH_REQ.length ? REBIRTH_REQ[n] : Math.round(REBIRTH_REQ[REBIRTH_REQ.length - 1] * Math.pow(2, n - (REBIRTH_REQ.length - 1))));
+// Coin cost to take the next Rebirth (paid from your balance). After the listed steps, the cost rises about 1.5x and rounds to the nearest 1,000.
+const REBIRTH_REQ = [5000, 8000, 12000, 18000, 27000, 40000, 60000];
+const rebirthReq = (n: number): number => (n < REBIRTH_REQ.length ? REBIRTH_REQ[n] : Math.round(REBIRTH_REQ[REBIRTH_REQ.length - 1] * Math.pow(1.5, n - (REBIRTH_REQ.length - 1)) / 1000) * 1000);
 const unlocksAt = (n: number): PackId[] => PIDS.filter((id) => packUnlockAt(id) === n);
 let liveRebirth = 0;
 const setLiveRebirth = (n: number): void => { liveRebirth = Math.max(0, Math.floor(n)); };
@@ -326,7 +327,29 @@ const RARITY_LIFT = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(
 const preValue = (p: Player, r: RarityId, via: PackId = p.packId): number => baseValue(p, r, via) + (RARITY_LIFT[via][r] ?? 0);
 // Per-card variation: a stable hash of player id + rarity adds 0 to 30% of the pack's cheapest value for that rarity, so cards of one rarity differ but never drop below the floor (and never change between renders or saves).
 const FLOOR_V = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(RARITIES.filter((r) => r.tenths[id] > 0 || (RARITY_FLOOR[id][r.id] ?? 0) > 0).map((r) => [r.id, Math.min(...(rpool(id, r.id, true).length ? rpool(id, r.id, true) : poolOf(id)).map((p) => preValue(p, r.id, id)))]))])) as Record<PackId, Record<string, number>>;
+type ChaseFamily = "rookie" | "stars" | "legends" | "season" | "potw" | "rebirth";
+const chaseFamilyOf = (p: Player): ChaseFamily => {
+  if (RB_CHASE_IDS.has(p.id)) return "rebirth";
+  if (HOME_CHASE_IDS.has(p.id) && (p.packId === "rookie" || p.packId === "stars" || p.packId === "legends")) return p.packId;
+  if (POTW_CHASE_IDS.has(p.id)) return "potw";
+  if (SEASON_CHASE_IDS.has(p.id)) return "season";
+  return "stars";
+};
+const CHASE_BAND: Record<ChaseFamily, [number, number]> = { rookie: [3000, 4000], potw: [3400, 4300], season: [3600, 4600], stars: [4200, 5200], legends: [4800, 5450], rebirth: [5500, 6000] };
+const chasePeersOf = (fam: ChaseFamily): Player[] => (fam === "rebirth" ? RB_CHASE : fam === "potw" ? POTW_CHASE : fam === "season" ? ALL_SEASON_CHASE : CHASE[fam]);
+const chasePrestige = (p: Player): number => (POS_HYPE[p.pos] ?? 1) * ratingHype(ratingOf(p)) * (ELITE[p.name] ?? 1);
+// Named chase 1/1s sell in a prestige band of 3,000-6,000. Rebirth exclusives sit at the top of that range.
+const chaseValueOf = (p: Player): number => {
+  const fam = chaseFamilyOf(p);
+  const [lo, hi] = CHASE_BAND[fam];
+  const peers = chasePeersOf(fam);
+  const scores = (peers.length ? peers : [p]).map(chasePrestige);
+  const loS = Math.min(...scores), hiS = Math.max(...scores);
+  const t = hiS <= loS ? 0.5 : (chasePrestige(p) - loS) / (hiS - loS);
+  return Math.max(3000, Math.round(lo + t * (hi - lo)));
+};
 const valueOf = (p: Player, r: RarityId, via: PackId = p.packId): number => {
+  if (r === "super" && (CHASE_IDS.has(p.id) || (RB_CHASE_IDS.has(p.id) && isRebirthPack(via)))) return chaseValueOf(p);
   // Gridiron Kings, Defensive Walls and Rookie Phenoms sell in a tight band around 200, the same in every pack they drop in.
   if (r === "kings" || r === "walls") return 350 + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 100);
   if (r === "phenom") return 1000 + Math.round(((hashStr(p.id + "|" + r + "|v") % 1000) / 1000) * 500);
@@ -707,9 +730,19 @@ function loadSave(override?: string): Save {
     let bestCollection = typeof row.bestCollection === "number" && row.bestCollection >= 0 ? Math.round(row.bestCollection) : 0;
     if (bestCollection < colVal) bestCollection = colVal;
     let bestPull = parseBestPull(row.bestPull);
-    if (!bestPull && collection.length > 0) {
+    if (bestPull && bestPull.playerId && PBYID[bestPull.playerId] && isRarity(bestPull.rarity)) {
+      const held: Card = { uid: "bp", playerId: bestPull.playerId, rarity: bestPull.rarity, packId: bestPull.packId, seq: 0 };
+      if (isChaseCard(held)) bestPull = { ...bestPull, value: cardVal(held) };
+    }
+    if (collection.length > 0) {
       const top = collection.reduce((a, b) => cardVal(b) > cardVal(a) ? b : a);
-      bestPull = { name: playerOf(top.playerId).name, value: cardVal(top), packId: top.packId, date: "", rarity: top.rarity, playerId: top.playerId };
+      const topVal = cardVal(top);
+      if (!bestPull) bestPull = { name: playerOf(top.playerId).name, value: topVal, packId: top.packId, date: "", rarity: top.rarity, playerId: top.playerId };
+      else if (topVal > bestPull.value) {
+        bestPull = bestPull.playerId === top.playerId && bestPull.rarity === top.rarity
+          ? { ...bestPull, value: topVal }
+          : { name: playerOf(top.playerId).name, value: topVal, packId: top.packId, date: "", rarity: top.rarity, playerId: top.playerId };
+      }
     }
     setLiveHeldRebirthChase(collection.filter(isRebirthChaseCard).map((c) => c.playerId));
     return { v: 2, collection, openedCounts: oc, soundOn: row.soundOn !== false, cardSeq: seq, readyPack, balance, pulls, supers: Array.from(sup), locked: row.locked !== false, meta, rebirth, bestPull, bestCollection };
@@ -2654,19 +2687,21 @@ export default function GridironLegends() {
     for (const c of collection) { const s = by[c.rarity] ?? new Set<string>(); s.add(c.playerId); by[c.rarity] = s; }
     return Object.fromEntries(SETS.map((s) => { const own = s.need ? by[s.need] : any; return [s.id, own ? s.players.filter((id) => own.has(id)).length : 0]; })) as Record<string, number>;
   }, [collection]);
-  const nextRebirthAt = rebirthReq(rebirth);
-  const canRebirth = binderValue >= nextRebirthAt;
+  const rebirthCost = rebirthReq(rebirth);
+  const canRebirth = balance >= rebirthCost;
+  const rebirthShort = Math.max(0, rebirthCost - balance);
   const doRebirth = (): void => {
     if (opening || busyRef.current) return;
-    if (!canRebirth) { setNotice("Rebirth needs a collection worth " + money(nextRebirthAt) + ". Yours is worth " + money(binderValue) + "."); return; }
+    if (!canRebirth) { setNotice("Rebirth costs " + money(rebirthCost) + ". You have " + money(balance) + " — need " + money(rebirthShort) + " more."); return; }
     if (!confirmRebirth) { setConfirmRebirth(true); return; }
     const next = rebirth + 1;
     const gained = unlocksAt(next);
     const chaseNow = unlockedRebirthChases(next).filter((p) => !unlockedRebirthChases(rebirth).some((q) => q.id === p.id));
+    const nextBal = Math.max(START_BAL, latestRef.current.balance - rebirthCost);
     setConfirmRebirth(false);
     setRebirth(next);
     setLiveRebirth(next);
-    setBalance(START_BAL);
+    setBalance(nextBal);
     setReadyPack(null);
     setSelectedPack(null);
     setOddsPack(null);
@@ -2674,8 +2709,8 @@ export default function GridironLegends() {
     const bits: string[] = [];
     if (gained.length) bits.push(gained.map((id) => PB[id].name).join(", "));
     if (chaseNow.length) bits.push(chaseNow.length + " Rebirth chase 1/1s (" + chaseNow.map((p) => p.name).join(", ") + ")");
-    setNotice("Rebirth " + next + "! Cards kept, coins reset to " + money(START_BAL) + (bits.length ? ". Unlocked: " + bits.join(" · ") : "."));
-    latestRef.current = { ...latestRef.current, rebirth: next, balance: START_BAL, readyPack: null };
+    setNotice("Rebirth " + next + "! Paid " + money(rebirthCost) + ", coins now " + money(nextBal) + ", cards kept" + (bits.length ? ". Unlocked: " + bits.join(" · ") : "."));
+    latestRef.current = { ...latestRef.current, rebirth: next, balance: nextBal, readyPack: null };
     if (persistReadyRef.current) writeSave(latestRef.current);
   };
   const seasonLeft = seasonLeftToday(meta);
@@ -2816,8 +2851,8 @@ export default function GridironLegends() {
           {(() => { const nx = nextSeasonChange(); return <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.22)", border: "1px solid " + SEASON_THEME[seasonOf()].trim, fontSize: 13, lineHeight: 1.4 }}><div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>🎟 Season pack · {SEASON_THEME[seasonOf()].name}</div><div style={{ opacity: 0.85, marginTop: 3 }}>Active now ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nx.id].name} on {formatLongDate(nx.at)}. Pulled Season cards stay in your collection after it switches, and only this season's 3 ★ chase 1/1s can be pulled until then. Limited to 10 opens per day (resets at midnight).</div></div>; })()}
           <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 12, background: "rgba(40,16,70,0.45)", border: "1px solid rgba(226,200,255,0.4)", fontSize: 13, lineHeight: 1.4 }}>
             <div style={{ fontWeight: 800 }}>Rebirth {rebirth}</div>
-            <div style={{ opacity: 0.85, marginTop: 3 }}>Rebirthing resets your coins to {money(START_BAL)} but keeps every card. Next Rebirth at collection value {money(nextRebirthAt)} (now {money(binderValue)}). {unlocksAt(rebirth + 1).length ? "Unlocks: " + unlocksAt(rebirth + 1).map((id) => PB[id].name.replace(" Pack", "")).join(", ") + "." : "More Rebirths after that raise the threshold and keep the exclusive packs open."}</div>
-            <div style={{ marginTop: 8 }}><Button label={confirmRebirth ? "Confirm Rebirth · coins reset, cards kept" : "Rebirth"} variant="primary" onClick={doRebirth} disabled={opening || !canRebirth} />{confirmRebirth ? <Button label="Cancel" onClick={() => setConfirmRebirth(false)} /> : null}{!canRebirth ? <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.75 }}>Need {money(nextRebirthAt - binderValue)} more in the binder</span> : null}</div>
+            <div style={{ opacity: 0.85, marginTop: 3 }}>Rebirth costs {money(rebirthCost)} from your balance. You keep any coins left over, and never drop below {money(START_BAL)}. All cards stay in your binder. {unlocksAt(rebirth + 1).length ? "Unlocks: " + unlocksAt(rebirth + 1).map((id) => PB[id].name.replace(" Pack", "")).join(", ") + "." : "More Rebirths after that raise the cost and keep the exclusive packs open."}</div>
+            <div style={{ marginTop: 8 }}><Button label={confirmRebirth ? "Confirm Rebirth · pay " + money(rebirthCost) + ", keep leftover (min " + money(START_BAL) + "), cards kept" : "Rebirth · " + money(rebirthCost)} variant="primary" onClick={doRebirth} disabled={opening || !canRebirth} />{confirmRebirth ? <Button label="Cancel" onClick={() => setConfirmRebirth(false)} /> : null}{!canRebirth ? <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.75 }}>Need {money(rebirthShort)} coins</span> : null}</div>
           </div>
           <div className="gl-grid3" style={{ marginTop: 16 }}>
             <div className="gl-packcell">
@@ -2833,7 +2868,21 @@ export default function GridironLegends() {
               </button>
               <button type="button" className="gl-odds" onClick={() => { setOddsPack(oddsPack === "free" ? null : "free"); setSelectedPack(null); }}>Odds</button>
             </div>
-            {PACKS.map((pack) => (
+            {PACKS.filter((pack) => !isRebirthPack(pack.id)).map((pack) => (
+              <div key={pack.id} className="gl-packcell">
+                <button type="button" className={"gl-tile" + (selectedPack === pack.id ? " gl-sel" : "")} onClick={() => pickPack(pack.id)} style={{ opacity: isPackUnlocked(pack.id, rebirth) ? 1 : 0.78 }}>
+                  <PackThumb pack={pack} />
+                  <div className="gl-tile-name">{pack.id === "season" ? "Season · " + SEASON_THEME[seasonOf()].name : pack.name}</div>
+                  <div className="gl-blurb">{isPackUnlocked(pack.id, rebirth) ? pack.blurb : "Rebirth " + packUnlockAt(pack.id) + " to unlock."}</div>
+                  <div className="gl-tile-price">{!isPackUnlocked(pack.id, rebirth) ? <span style={{ color: "#ffe27a" }}>Rebirth {packUnlockAt(pack.id)} to unlock</span> : pack.id === "season" ? <span>{money(pack.price)} <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.75 }}>per pack · {seasonLeft}/10 today</span></span> : <span>{money(pack.price)} <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.75 }}>per pack</span></span>}</div>
+                </button>
+                <button type="button" className="gl-odds" onClick={() => { setOddsPack(oddsPack === pack.id ? null : pack.id); setSelectedPack(pack.id); }}>Odds</button>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 20, fontWeight: 800, fontStyle: "italic", textTransform: "uppercase", letterSpacing: 0.8, fontSize: 13 }}>Rebirth Packs</div>
+          <div className="gl-grid3" style={{ marginTop: 10 }}>
+            {PACKS.filter((pack) => isRebirthPack(pack.id)).map((pack) => (
               <div key={pack.id} className="gl-packcell">
                 <button type="button" className={"gl-tile" + (selectedPack === pack.id ? " gl-sel" : "")} onClick={() => pickPack(pack.id)} style={{ opacity: isPackUnlocked(pack.id, rebirth) ? 1 : 0.78 }}>
                   <PackThumb pack={pack} />
@@ -2848,8 +2897,8 @@ export default function GridironLegends() {
           {selected ? (
             <div style={{ marginTop: 14, padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.28)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>{selected.name}</div>
-              <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>{!isPackUnlocked(selected.id, rebirth) ? "Rebirth " + packUnlockAt(selected.id) + " to unlock this pack. Rebirthing keeps your cards and resets your coins." : selected.blurb + " 1 card · " + selected.hint + " · " + money(selected.price) + " per pack (10 packs " + money(selected.price * 10) + ")." + (selected.id === "season" ? " " + seasonLeft + "/10 opens today (resets at midnight)." : "")}</div>
-              <div style={{ marginTop: 10, fontSize: 13 }}>{!isPackUnlocked(selected.id, rebirth) ? "Reach a collection worth " + money(nextRebirthAt) + " to Rebirth." : readyPack && readyPack.packId === selected.id ? "Your " + selected.name + " is ready below — tap the sealed pack to open it." : "Tap the tile to get a pack, then rip it below."}</div>
+              <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>{!isPackUnlocked(selected.id, rebirth) ? "Rebirth " + packUnlockAt(selected.id) + " to unlock this pack. Rebirth costs " + money(rebirthCost) + "; you keep leftover coins (at least " + money(START_BAL) + ") and all of your cards." : selected.blurb + " 1 card · " + selected.hint + " · " + money(selected.price) + " per pack (10 packs " + money(selected.price * 10) + ")." + (selected.id === "season" ? " " + seasonLeft + "/10 opens today (resets at midnight)." : "")}</div>
+              <div style={{ marginTop: 10, fontSize: 13 }}>{!isPackUnlocked(selected.id, rebirth) ? "Rebirth costs " + money(rebirthCost) + ". Pay it to unlock this pack; you keep leftover coins (at least " + money(START_BAL) + ") and all of your cards." : readyPack && readyPack.packId === selected.id ? "Your " + selected.name + " is ready below — tap the sealed pack to open it." : "Tap the tile to get a pack, then rip it below."}</div>
               {selected.id !== "free" ? <ChaseRow packId={selected.id} supers={heldSupers} /> : null}
               {selected.id === "boom" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>A 1/1 here can be any of the {HOME_CHASE_IDS.size} ★ home chase 1/1s (see the Chase Cards tab). Seasonal and POTW chase cards are only in their own packs.</div> : selected.id === "season" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>Active season: {SEASON_THEME[seasonOf()].name} ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nextSeasonChange().id].name} on {formatLongDate(nextSeasonChange().at)}. Only this season's 3 ★ chase 1/1s can be pulled now.</div> : selected.id === "potw" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>This pack keeps a 25% shot at a green Player of the Week card. A small share of the rest can be a 1/1, including one of this pack's 3 ★ chase 1/1s.</div> : null}
             </div>
@@ -2956,12 +3005,12 @@ export default function GridironLegends() {
           <Metrics metrics={[
             { value: bestPull ? money(bestPull.value) : "—", label: "Best Pull", detail: bestPull ? bestPull.name + " · " + RB[bestPull.rarity].name + " · " + packOf(bestPull.packId).name.replace(" Pack", "") + (bestPull.date ? " · " + bestPull.date : "") : "Open a pack to set your first best pull" },
             { value: money(bestCollection), label: "Best Collection", detail: "Peak binder value · now " + money(binderValue) },
-            { value: String(rebirth), label: "Rebirths", detail: "Next at " + money(nextRebirthAt) + (canRebirth ? " · ready" : "") },
+            { value: String(rebirth), label: "Rebirths", detail: "Next costs " + money(rebirthCost) + (canRebirth ? " · ready" : "") },
           ]} />
           <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-            <Button label={confirmRebirth ? "Confirm Rebirth · coins reset, cards kept" : "Rebirth"} variant="primary" onClick={doRebirth} disabled={opening || !canRebirth} />
+            <Button label={confirmRebirth ? "Confirm Rebirth · pay " + money(rebirthCost) + ", keep leftover (min " + money(START_BAL) + "), cards kept" : "Rebirth · " + money(rebirthCost)} variant="primary" onClick={doRebirth} disabled={opening || !canRebirth} />
             {confirmRebirth ? <Button label="Cancel" onClick={() => setConfirmRebirth(false)} /> : null}
-            {!canRebirth ? <span style={{ fontSize: 12, opacity: 0.75 }}>Need {money(Math.max(0, nextRebirthAt - binderValue))} more in the binder. Rebirth keeps your cards.</span> : <span style={{ fontSize: 12, opacity: 0.75 }}>Keeps all cards, resets coins to {money(START_BAL)}.</span>}
+            {!canRebirth ? <span style={{ fontSize: 12, opacity: 0.75 }}>Need {money(rebirthShort)} coins</span> : <span style={{ fontSize: 12, opacity: 0.75 }}>Pays {money(rebirthCost)}; you keep leftover coins (at least {money(START_BAL)}) and all of your cards.</span>}
           </div>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>

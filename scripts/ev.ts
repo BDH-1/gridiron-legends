@@ -13,7 +13,7 @@ console.log("season", seasonOf(), "price", SEASON_PRICE);
 setLiveRebirth(6);
 console.log("--- unlock at ---");
 for (const id of PIDS) console.log(" ", id, packOf(id).name, "rebirth", packUnlockAt(id));
-console.log("--- rebirth req ---");
+console.log("--- rebirth coin cost ---");
 for (let i = 0; i < 8; i++) console.log(" ", i, "->", i + 1, rebirthReq(i));
 console.log("--- rebirth chases ---");
 for (const p of RB_CHASE) console.log(" ", p.name);
