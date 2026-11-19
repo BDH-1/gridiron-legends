@@ -900,6 +900,45 @@ function writeSave(s: Save, force = false): boolean {
   lastStores = ok;
   return ok.some((x) => x === "local" || x === "idb" || x === "cookie") || idbOk;
 }
+function idbDelete(): Promise<boolean> {
+  return idbOpen().then((db) => new Promise<boolean>((res) => {
+    const tx = db.transaction("s", "readwrite");
+    tx.objectStore("s").delete(SAVE_KEY);
+    tx.oncomplete = () => { db.close(); res(true); };
+    tx.onerror = () => { db.close(); res(false); };
+  })).catch(() => false);
+}
+/** Drops every in-memory and durable copy of the save, plus free/season side stamps, so a richer leftover cannot win on the next load. */
+function clearProgressStores(): void {
+  memFreeAt = 0;
+  freeClaimArmed = false;
+  memSeasonDay = "";
+  memSeasonN = 0;
+  memSeasonAt = 0;
+  seasonClaimArmed = 0;
+  memRaw = null;
+  memSave = null;
+  idbBoot = Promise.resolve(null);
+  if (typeof window === "undefined") return;
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    try { store.removeItem(SAVE_KEY); store.removeItem(FREE_AT_KEY); store.removeItem(SEASON_DAY_KEY); } catch { /* blocked */ }
+  }
+  cookieClear();
+  try { if (window.name.startsWith("GLN:")) window.name = ""; } catch { /* ignore */ }
+}
+function forgetMemorySaves(): void {
+  memRaw = null;
+  memSave = null;
+  idbBoot = Promise.resolve(null);
+}
+function wipeAllProgress(fresh: Save = defaultSave()): Promise<boolean> {
+  clearProgressStores();
+  return idbDelete().then(() => {
+    idbBoot = Promise.resolve(null);
+    const ok = writeSave(fresh, true);
+    return lastIdbWrite.then((idb) => ok || idb);
+  });
+}
 function legacyCopy(text: string): boolean {
   try {
     const el = document.createElement("textarea");
@@ -2517,6 +2556,54 @@ export default function GridironLegends() {
     writeSave({ ...reset, meta: keptMeta }, true);
   };
 
+  const resetAll = (): void => {
+    const go = typeof window !== "undefined" && window.confirm("Reset All wipes every bit of progress — your cards, coins, rebirths, achievements, records, free-pack cooldown, and Season daily opens — from this browser. This cannot be undone.\n\nCopy a backup code first if you may want this save back.\n\nContinue?");
+    if (!go) return;
+    const typed = typeof window !== "undefined" ? window.prompt("Type RESET to permanently wipe all progress.") : null;
+    if (typed !== "RESET") {
+      if (typed != null) setNotice("Reset cancelled — you must type RESET exactly.");
+      return;
+    }
+    const fresh = defaultSave();
+    fresh.soundOn = latestRef.current.soundOn;
+    genRef.current += 1;
+    cardSeq = 0;
+    latestRef.current = fresh;
+    setCollection(fresh.collection);
+    setOpenedCounts(fresh.openedCounts);
+    setBalance(fresh.balance);
+    setLocked(fresh.locked);
+    setPulls(fresh.pulls);
+    setSupers(fresh.supers);
+    setMeta(fresh.meta);
+    achDone.current = new Set<string>();
+    setReadyPack(null);
+    setStage("idle");
+    resetView();
+    setConfirmReset(false);
+    setConfirmRebirth(false);
+    clearBusy();
+    setSelectedPack(null);
+    setOddsPack(null);
+    setInspectCard(null);
+    setRebirth(0);
+    setBestPull(null);
+    setBestCollection(0);
+    setLiveRebirth(0);
+    setLiveHeldRebirthChase([]);
+    setPendingRestore(null);
+    setRestoreText("");
+    setBackupCode("");
+    setConfirmSell("");
+    setKept([]);
+    setDayTick((n) => n + 1);
+    void wipeAllProgress(fresh).then((ok) => {
+      setPersistOk(ok);
+      if (ok) setSavedAt({ t: Date.now(), manual: true });
+      setNotice("All progress has been reset.");
+    });
+  };
+
   const addPulls = (cards: Card[]): void => {
     const sc = cards.filter((c) => c.rarity === "super").map((c) => c.playerId);
     if (sc.length > 0) setSupers((prev) => Array.from(new Set(prev.concat(sc))));
@@ -2855,6 +2942,7 @@ export default function GridironLegends() {
             
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
               <Button label="💾 Save" variant="primary" onClick={saveNow} />
+              <button type="button" onClick={resetAll} disabled={opening} aria-label="Reset all progress" style={{ appearance: "none", minHeight: 44, padding: "8px 14px", borderRadius: 10, border: "1px solid #ffb4b4", background: "linear-gradient(180deg,#e24b4b,#b91c1c)", color: "#fff", font: "inherit", fontSize: 14, fontWeight: 800, cursor: opening ? "default" : "pointer", opacity: opening ? 0.55 : 1, touchAction: "manipulation" }}>Reset All</button>
               {!persistOk && persistReady ? <Button label="Copy backup code" onClick={() => copyBackup()} /> : null}
               <Toggle label={locked ? "Collection locked" : "Collection unlocked"} value={locked} onChange={(v: boolean) => { setLocked(v); if (v) setConfirmReset(false); }} />
               {locked ? null : <Button label={confirmReset ? "Confirm reset" : "Reset collection"} onClick={resetCollection} disabled={opening} />}
@@ -3041,6 +3129,7 @@ export default function GridironLegends() {
           <Toggle label={locked ? "Collection locked" : "Collection unlocked"} value={locked} onChange={(v: boolean) => { setLocked(v); if (v) setConfirmReset(false); }} />
           <Button label="Copy backup code" onClick={() => copyBackup()} />
           {typeof navigator !== "undefined" && typeof navigator.share === "function" ? <Button label="Share / save backup" onClick={shareBackup} /> : null}
+          <button type="button" onClick={resetAll} disabled={opening} aria-label="Reset all progress" style={{ appearance: "none", minHeight: 44, padding: "8px 14px", borderRadius: 10, border: "1px solid #ffb4b4", background: "linear-gradient(180deg,#e24b4b,#b91c1c)", color: "#fff", font: "inherit", fontSize: 14, fontWeight: 800, cursor: opening ? "default" : "pointer", opacity: opening ? 0.55 : 1, touchAction: "manipulation" }}>Reset All</button>
         </div>
         {backupCode ? (
           <div>
@@ -3176,4 +3265,4 @@ export default function GridironLegends() {
     </Page>
   );
 }
-export { encodeBackup, decodeBackup, loadSave, compactOf, defaultSave, PLAYERS, PBYID, evOf, valueOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, POTW_PLAYERS, POTW_CHASE, parsePackFilter, asPackId, FREE_TENTHS, SEASON_TENTHS, FREE_PACK, RARITIES, drawCard, isChaseCard, originPack, CHASE_IDS, chaseOf, CHASE_SHARE, FREE_COOLDOWN, FREE_AT_KEY, lastFreeAt, peekFreeAt, isFreeReady, armFreeClaim, consumeFreeClaim, mergeFreeMeta, resetFreeClaimForTests, persistFreeAt, setLiveRebirth, currentRebirth, inferRebirth, rebirthReq, packUnlockAt, isPackUnlocked, UNLOCK_AT, RB_CHASE, RB_CHASE_IDS, isRebirthChaseCard, SEASON_DAILY_LIMIT, SEASON_DAY_KEY, peekSeasonUsed, seasonLeftToday, armSeasonClaim, consumeSeasonClaim, mergeSeasonMeta, resetSeasonClaimForTests, persistSeasonStamp };
+export { encodeBackup, decodeBackup, loadSave, compactOf, defaultSave, PLAYERS, PBYID, evOf, valueOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, POTW_PLAYERS, POTW_CHASE, parsePackFilter, asPackId, FREE_TENTHS, SEASON_TENTHS, FREE_PACK, RARITIES, drawCard, isChaseCard, originPack, CHASE_IDS, chaseOf, CHASE_SHARE, FREE_COOLDOWN, FREE_AT_KEY, lastFreeAt, peekFreeAt, isFreeReady, armFreeClaim, consumeFreeClaim, mergeFreeMeta, resetFreeClaimForTests, persistFreeAt, setLiveRebirth, currentRebirth, inferRebirth, rebirthReq, packUnlockAt, isPackUnlocked, UNLOCK_AT, RB_CHASE, RB_CHASE_IDS, isRebirthChaseCard, SEASON_DAILY_LIMIT, SEASON_DAY_KEY, peekSeasonUsed, seasonLeftToday, armSeasonClaim, consumeSeasonClaim, mergeSeasonMeta, resetSeasonClaimForTests, persistSeasonStamp, writeSave, wipeAllProgress, clearProgressStores, forgetMemorySaves, SAVE_KEY, START_BAL, saveScore, cookieRead };
