@@ -103,6 +103,8 @@ const isRebirthPack = (id: PackId): boolean => id === "rb1" || id === "rb2" || i
 const UNLOCK_AT: Record<PackId, number> = { free: 0, standard: 0, rookie: 0, stars: 0, potw: 1, rb1: 1, season: 2, boom: 3, legends: 4, rb2: 5, rb3: 6 };
 const packUnlockAt = (id: PackId): number => UNLOCK_AT[id] ?? 0;
 const isPackUnlocked = (id: PackId, rebirth: number): boolean => rebirth >= packUnlockAt(id);
+// Store tiles: sort by the Rebirth needed, ascending, keeping current order within the same level.
+const storePacksOf = (rebirthOnly: boolean): Pack[] => PACKS.filter((p) => isRebirthPack(p.id) === rebirthOnly).slice().sort((a, b) => packUnlockAt(a.id) - packUnlockAt(b.id));
 // Coin cost to take the next Rebirth (paid from your balance). After the listed steps, the cost rises about 1.5x and rounds to the nearest 1,000.
 const REBIRTH_REQ = [5000, 8000, 12000, 18000, 27000, 40000, 60000];
 const rebirthReq = (n: number): number => (n < REBIRTH_REQ.length ? REBIRTH_REQ[n] : Math.round(REBIRTH_REQ[REBIRTH_REQ.length - 1] * Math.pow(1.5, n - (REBIRTH_REQ.length - 1)) / 1000) * 1000);
@@ -2978,7 +2980,7 @@ export default function GridironLegends() {
               </button>
               <button type="button" className="gl-odds" onClick={() => { setOddsPack(oddsPack === "free" ? null : "free"); setSelectedPack(null); }}>Odds</button>
             </div>
-            {PACKS.filter((pack) => !isRebirthPack(pack.id)).map((pack) => (
+            {storePacksOf(false).map((pack) => (
               <div key={pack.id} className="gl-packcell">
                 <button type="button" className={"gl-tile" + (selectedPack === pack.id ? " gl-sel" : "")} onClick={() => pickPack(pack.id)} style={{ opacity: isPackUnlocked(pack.id, rebirth) ? 1 : 0.78 }}>
                   <PackThumb pack={pack} locked={!isPackUnlocked(pack.id, rebirth)} />
@@ -2992,7 +2994,7 @@ export default function GridironLegends() {
           </div>
           <div style={{ marginTop: 20, fontWeight: 800, fontStyle: "italic", textTransform: "uppercase", letterSpacing: 0.8, fontSize: 13 }}>Rebirth Packs</div>
           <div className="gl-grid3" style={{ marginTop: 10 }}>
-            {PACKS.filter((pack) => isRebirthPack(pack.id)).map((pack) => (
+            {storePacksOf(true).map((pack) => (
               <div key={pack.id} className="gl-packcell">
                 <button type="button" className={"gl-tile" + (selectedPack === pack.id ? " gl-sel" : "")} onClick={() => pickPack(pack.id)} style={{ opacity: isPackUnlocked(pack.id, rebirth) ? 1 : 0.78 }}>
                   <PackThumb pack={pack} locked={!isPackUnlocked(pack.id, rebirth)} />
