@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from "grok/canvas";
 
 type HomeId = "rookie" | "stars" | "legends";
 type SeasonId = "superbowl" | "rookies" | "halloween" | "thanksgiving" | "christmas";
-type PackId = HomeId | "standard" | "potw" | "boom" | "season" | "free";
+type PackId = HomeId | "standard" | "potw" | "boom" | "season" | "free" | "rb1" | "rb2" | "rb3";
 type RarityId = "base" | "silver" | "kings" | "walls" | "phenom" | "gold" | "potw" | "auto" | "super";
 type Stage = "idle" | "tearing" | "reveal" | "multi";
 interface Rarity { id: RarityId; name: string; short: string; tenths: Record<PackId, number>; rank: number; frame: string; ink: string; glow: string; bg: string }
@@ -12,11 +12,12 @@ interface Player { id: string; name: string; team: Team; pos: string; num: numbe
 interface Card { uid: string; playerId: string; rarity: RarityId; packId: PackId; seq: number; via?: PackId }
 interface RCard extends Card { flipped: boolean }
 interface Pack { id: PackId; name: string; hint: string; blurb: string; bg: string; trim: string; thumb: string; price: number }
-interface Meta { daily: string; dailyN: number; sets: string[]; ach: string[] }
-interface Save { v: 2; collection: Card[]; openedCounts: Record<PackId, number>; soundOn: boolean; cardSeq: number; readyPack: { packId: PackId } | null; balance: number; pulls: Record<string, number>; supers: string[]; locked: boolean; meta: Meta }
+interface Meta { daily: string; dailyN: number; sets: string[]; ach: string[]; seasonDay: string; seasonN: number }
+interface BestPull { name: string; value: number; packId: PackId; date: string; rarity: RarityId; playerId: string }
+interface Save { v: 2; collection: Card[]; openedCounts: Record<PackId, number>; soundOn: boolean; cardSeq: number; readyPack: { packId: PackId } | null; balance: number; pulls: Record<string, number>; supers: string[]; locked: boolean; meta: Meta; rebirth: number; bestPull: BestPull | null; bestCollection: number }
 
 const SET = "Gridiron Legends";
-const VERSION = "4.0"; // bump by 0.1 with each change
+const VERSION = "4.1"; // bump by 0.1 with each change
 const YEAR = "2026";
 const HOME: HomeId[] = ["rookie", "stars", "legends"];
 const SEASON_IDS: SeasonId[] = ["superbowl", "rookies", "halloween", "thanksgiving", "christmas"];
@@ -52,7 +53,8 @@ const makeSeasonPack = (d: Date = new Date()): Pack => {
 };
 
 const SOURCE_PIDS: PackId[] = ["standard", "rookie", "stars", "legends", "season", "potw", "boom"];
-const PIDS: PackId[] = SOURCE_PIDS.concat(["free"]);
+const RB_PIDS: PackId[] = ["rb1", "rb2", "rb3"];
+const PIDS: PackId[] = SOURCE_PIDS.concat(["free"], RB_PIDS);
 const RAINBOW = "linear-gradient(120deg, #ff4d6d, #ffb000, #3dff8a, #3dc6ff, #c44dff, #ff4d6d)";
 
 // Boom or Bust pack odds in tenths of a percent: Base is the bust, Auto and 1/1 are the booms, plus the usual 0.4 percent POTW. Nothing else drops.
@@ -60,7 +62,11 @@ const BOOM_TENTHS: Partial<Record<RarityId, number>> = { base: 799.9, auto: 130,
 // Free Pack odds in tenths of a percent: mostly Base and Silver, with small shots at inserts, Gold, POTW, Auto and 1/1. Rookie Phenoms are a 0.01% sliver here; they are mainly in Rising Stars.
 const FREE_TENTHS: Record<RarityId, number> = { base: 629.9, silver: 250, kings: 10, walls: 10, phenom: 0.1, gold: 70, potw: 10, auto: 15, super: 5 };
 // Season pack: Base is 34%. Other tiers are the previous Stars-identical table scaled so everything still sums to 100. The 3 seasonal chase 1/1s stay a CHASE_SHARE of the 1/1 slot. Rookie Phenoms are 0.01%.
-const SEASON_TENTHS: Record<RarityId, number> = { base: 339.9, silver: 334, kings: 14, walls: 14, phenom: 0.1, gold: 195, potw: 5, auto: 77, super: 21 };
+const SEASON_TENTHS: Record<RarityId, number> = { base: 314.9, silver: 314, kings: 14, walls: 14, phenom: 0.1, gold: 215, potw: 5, auto: 92, super: 31 };
+// Exclusive Rebirth-tier packs (tenths of a percent, sum to 1000). Rookie Phenoms stay a 0.01% sliver.
+const RB1_TENTHS: Record<RarityId, number> = { base: 400, silver: 250, kings: 20, walls: 20, phenom: 0.1, gold: 180, potw: 4, auto: 90, super: 35.9 };
+const RB2_TENTHS: Record<RarityId, number> = { base: 300, silver: 250, kings: 25, walls: 25, phenom: 0.1, gold: 200, potw: 4, auto: 130, super: 65.9 };
+const RB3_TENTHS: Record<RarityId, number> = { base: 220, silver: 220, kings: 30, walls: 30, phenom: 0.1, gold: 220, potw: 4, auto: 180, super: 95.9 };
 // Boom or Bust value floors: the cheapest Auto, 1/1 and POTW in this pack.
 const BOOM_FLOOR = { potw: 100, auto: 300, super: 540 };
 const RARITIES: Rarity[] = ([
@@ -73,7 +79,7 @@ const RARITIES: Rarity[] = ([
   ["potw", "Player of the Week", "POTW", 4, 4, 4, 4, 250, "#1fd37a", "#04281a", "rgba(40,235,130,0.95)", "linear-gradient(180deg, #eafff3, #b6f2d0)"],
   ["auto", "Autograph", "Auto", 55, 55, 70, 14, 0, "#6ee0c4", "#083028", "rgba(80,230,190,0.95)", "linear-gradient(180deg, #f3fff9, #d9f3ea)"],
   ["super", "1/1 Superfractal", "1/1", 15, 15, 25, 1, 4, "#d46cff", "#fbeaff", "rgba(210,120,255,1)", "linear-gradient(135deg, #3b0a4a 0%, #1a1040 35%, #0d2a3a 70%, #3a0a2a 100%)"],
-] as [RarityId, string, string, number, number, number, number, number, string, string, string, string][]).map(([id, name, short, r, s, l, t, w, frame, ink, glow, bg], i) => ({ id, name, short, tenths: { rookie: r, stars: s, legends: l, standard: t, potw: w, boom: BOOM_TENTHS[id] ?? 0, season: SEASON_TENTHS[id] ?? 0, free: FREE_TENTHS[id] ?? 0 }, rank: i + 1, frame, ink, glow, bg }));
+] as [RarityId, string, string, number, number, number, number, number, string, string, string, string][]).map(([id, name, short, r, s, l, t, w, frame, ink, glow, bg], i) => ({ id, name, short, tenths: { rookie: r, stars: s, legends: l, standard: t, potw: w, boom: BOOM_TENTHS[id] ?? 0, season: SEASON_TENTHS[id] ?? 0, free: FREE_TENTHS[id] ?? 0, rb1: RB1_TENTHS[id] ?? 0, rb2: RB2_TENTHS[id] ?? 0, rb3: RB3_TENTHS[id] ?? 0 }, rank: i + 1, frame, ink, glow, bg }));
 const RB = Object.fromEntries(RARITIES.map((r) => [r.id, r])) as Record<RarityId, Rarity>;
 
 const PACKS: Pack[] = [
@@ -84,11 +90,43 @@ const PACKS: Pack[] = [
   makeSeasonPack(),
   { id: "potw", name: "Player of the Week Pack", hint: "25% POTW", blurb: "25% green POTW cards, Silver from the whole set, and a small shot at 3 ★ chase 1/1s.", bg: "repeating-linear-gradient(90deg, rgba(255,255,255,0.07) 0 10px, rgba(0,0,0,0.05) 10px 20px), linear-gradient(165deg, #04301c 0%, #1fd37a 45%, #0a6b3c 100%)", trim: "#d6ffe9", thumb: "W", price: 50 },
   { id: "boom", name: "Boom or Bust Pack", hint: "Boom/Bust", blurb: "All-or-nothing: four in five pulls are a Bust; one in five is a Boom — an Autograph or 1/1.", bg: "linear-gradient(115deg, #0c0c10 0%, #0c0c10 47%, #e0141e 47%, #8f0a12 100%)", trim: "#ffb3a0", thumb: "B", price: 100 },
+  { id: "rb1", name: "Awakening Pack", hint: "Rebirth 1", blurb: "An exclusive Rebirth pack of today's elite players, unlocked after your first rebirth.", bg: "linear-gradient(165deg, #1a0833 0%, #8a3dff 45%, #3a0a6a 100%)", trim: "#e2c8ff", thumb: "R1", price: 125 },
+  { id: "rb2", name: "Dynasty Pack", hint: "Rebirth 5", blurb: "An exclusive late-Rebirth pack of 90-overall stars and legends.", bg: "linear-gradient(165deg, #2a0a10 0%, #c41a3a 40%, #7a1020 70%, #f0c44a 100%)", trim: "#ffd0a8", thumb: "R5", price: 200 },
+  { id: "rb3", name: "Ascension Pack", hint: "Rebirth 6", blurb: "The final Rebirth pack: the very best players in the set, with the strongest exclusive odds.", bg: "linear-gradient(165deg, #050510 0%, #2a1048 35%, #d4b14a 58%, #0a0a14 100%)", trim: "#ffe9a8", thumb: "R6", price: 400 },
 ];
 const FREE_BLURB = "Any card from any pack, including inserts and ★ chases. Mostly Base and Silver, with a small shot at rare stuff.";
 const FREE_PACK: Pack = { id: "free", name: "Free Pack", hint: "FREE", blurb: FREE_BLURB, bg: "linear-gradient(165deg, #05261a 0%, #1fd37a 45%, #0a4a2c 100%)", trim: "#d6ffe9", thumb: "F", price: 0 };
 const PB = Object.fromEntries(PACKS.concat([FREE_PACK]).map((p) => [p.id, p])) as Record<PackId, Pack>;
 const packOf = (id: PackId): Pack => (id === "season" ? makeSeasonPack() : PB[id]);
+const isRebirthPack = (id: PackId): boolean => id === "rb1" || id === "rb2" || id === "rb3";
+// Rebirth 0 keeps Free, Standard, Rising Stars and Stars. Everything else unlocks by rebirth level.
+const UNLOCK_AT: Record<PackId, number> = { free: 0, standard: 0, rookie: 0, stars: 0, potw: 1, rb1: 1, season: 2, boom: 3, legends: 4, rb2: 5, rb3: 6 };
+const packUnlockAt = (id: PackId): number => UNLOCK_AT[id] ?? 0;
+const isPackUnlocked = (id: PackId, rebirth: number): boolean => rebirth >= packUnlockAt(id);
+const REBIRTH_REQ = [2000, 5000, 10000, 20000, 40000, 75000, 140000];
+const rebirthReq = (n: number): number => (n < REBIRTH_REQ.length ? REBIRTH_REQ[n] : Math.round(REBIRTH_REQ[REBIRTH_REQ.length - 1] * Math.pow(2, n - (REBIRTH_REQ.length - 1))));
+const unlocksAt = (n: number): PackId[] => PIDS.filter((id) => packUnlockAt(id) === n);
+let liveRebirth = 0;
+const setLiveRebirth = (n: number): void => { liveRebirth = Math.max(0, Math.floor(n)); };
+const currentRebirth = (): number => liveRebirth;
+const liveHeldRebirthChase = new Set<string>();
+const setLiveHeldRebirthChase = (ids: Iterable<string>): void => { liveHeldRebirthChase.clear(); for (const id of ids) liveHeldRebirthChase.add(id); };
+const chaseSlotPct = (id: PackId): number => {
+  if (id === "standard") return 0;
+  // Free Pack can still pull home / POTW / season chases; the odds line is an aggregate, not a card list.
+  if (id === "free" || chaseDraw(id).length > 0) return (RB.super.tenths[id] / 10) * CHASE_SHARE;
+  return 0;
+};
+const packUsedIn = (opened: Record<string, number>, collection: Card[], ready: { packId: PackId } | null, id: PackId): boolean => {
+  if ((opened[id] ?? 0) > 0) return true;
+  if (ready?.packId === id) return true;
+  return collection.some((c) => c.packId === id || c.via === id);
+};
+const inferRebirth = (opened: Record<string, number>, collection: Card[], ready: { packId: PackId } | null): number => {
+  let n = 0;
+  for (const id of PIDS) { if (packUnlockAt(id) > 0 && packUsedIn(opened, collection, ready, id)) n = Math.max(n, packUnlockAt(id)); }
+  return n;
+};
 
 const TEAMS: Team[] = "ARI,Arizona Cardinals,97233F,FFB612;ATL,Atlanta Falcons,A71930,101820;BAL,Baltimore Ravens,241773,9E7C0C;BUF,Buffalo Bills,00338D,C60C30;CAR,Carolina Panthers,0085CA,101820;CHI,Chicago Bears,0B162A,C83803;CIN,Cincinnati Bengals,FB4F14,101820;CLE,Cleveland Browns,311D00,FF3C00;DAL,Dallas Cowboys,041E42,869397;DEN,Denver Broncos,FB4F14,002244;DET,Detroit Lions,0076B6,B0B7BC;GB,Green Bay Packers,203731,FFB612;HOU,Houston Texans,03202F,A71930;IND,Indianapolis Colts,002C5F,A2AAAD;JAX,Jacksonville Jaguars,006778,D7A22A;KC,Kansas City Chiefs,E31837,FFB612;LV,Las Vegas Raiders,101820,A5ACAF;LAC,Los Angeles Chargers,0080C6,FFC20E;LAR,Los Angeles Rams,003594,FFA300;MIA,Miami Dolphins,008E97,FC4C02;MIN,Minnesota Vikings,4F2683,FFC62F;NE,New England Patriots,002244,C60C30;NO,New Orleans Saints,101820,D3BC8D;NYG,New York Giants,0B2265,A71930;NYJ,New York Jets,125740,101820;PHI,Philadelphia Eagles,004C54,A5ACAF;PIT,Pittsburgh Steelers,101820,FFB612;SF,San Francisco 49ers,AA0000,B3995D;SEA,Seattle Seahawks,002244,69BE28;TB,Tampa Bay Buccaneers,D50A0A,0A0A08;TEN,Tennessee Titans,0C2340,4B92DB;WAS,Washington Commanders,5A1414,FFB612".split(";").map((row) => {
   const [abbr = "", name = "", a = "", b = ""] = row.split(",");
@@ -147,8 +185,16 @@ const poolOf = (id: PackId): Player[] => {
     for (const p of PLAYERS.concat(currentSeasonPlayers())) { if (!seen.has(p.id)) { seen.add(p.id); out.push(p); } }
     return out;
   }
+  if (isRebirthPack(id)) return rebirthPoolOf(id);
   return PLAYERS.filter((p) => p.packId === id);
 };
+const rbPoolCache: Partial<Record<PackId, Player[]>> = {};
+function rebirthPoolOf(id: PackId): Player[] {
+  const hit = rbPoolCache[id];
+  if (hit) return hit;
+  const min = id === "rb3" ? 93 : id === "rb2" ? 90 : 86;
+  return (rbPoolCache[id] = PLAYERS.filter((p) => ratingOf(p) >= min));
+}
 const valuePoolOf = (id: PackId): Player[] => (id === "season" || id === "free" ? (id === "free" ? PLAYERS.concat(SEASON_PLAYERS) : SEASON_PLAYERS) : poolOf(id));
 // Insert sets: Gridiron Kings are the top quarterbacks and Defensive Walls the top defenders, drawn from that pack's pool. Rookie Phenoms are the best young Rising Stars players; they mainly drop in the Rising Stars pack and are a 0.01% sliver in every other pack.
 const INSERT_POOL: Partial<Record<RarityId, (p: Player) => boolean>> = {
@@ -179,10 +225,28 @@ const POTW_CHASE: Player[] = POTW_CHASE_NAMES.map((n) => PLAYERS.find((p) => p.n
 const POTW_CHASE_IDS = new Set(POTW_CHASE.map((p) => p.id));
 const CHASE_IDS = new Set(([] as string[]).concat(Array.from(HOME_CHASE_IDS), Array.from(SEASON_CHASE_IDS), Array.from(POTW_CHASE_IDS)));
 const ALL_CHASE: Player[] = ([] as Player[]).concat(...HOME.map((h) => CHASE[h]));
-const chaseOf = (id: PackId): Player[] => (id === "season" ? SEASON_CHASE[seasonOf()] : id === "free" ? ALL_CHASE.concat(SEASON_CHASE[seasonOf()], POTW_CHASE) : id === "potw" ? POTW_CHASE : (id === "standard" || id === "boom" ? [] : CHASE[id]));
-// Boom or Bust (and the Free Pack) can hit a chase 1/1: Boom draws from the home chase players; the Free Pack can hit any home, POTW, or this season's chase, at the same CHASE_SHARE.
+// Exclusive Rebirth chase 1/1s. Milestone 3 and 5 unlock a set of current NFL stars who are not already chases elsewhere. They only drop in Rebirth packs.
+const RB_CHASE_NAMES: Record<number, string[]> = { 3: ["Christian McCaffrey", "Justin Herbert", "A.J. Brown"], 5: ["Travis Kelce", "T.J. Watt", "George Kittle"] };
+const RB_CHASE_AT: Record<string, number> = {};
+const RB_CHASE: Player[] = [];
+for (const at of Object.keys(RB_CHASE_NAMES).map(Number)) {
+  for (const n of RB_CHASE_NAMES[at] ?? []) {
+    const pl = PLAYERS.find((p) => p.name === n);
+    if (!pl || CHASE_IDS.has(pl.id)) continue;
+    RB_CHASE.push(pl);
+    RB_CHASE_AT[pl.id] = at;
+  }
+}
+const RB_CHASE_IDS = new Set(RB_CHASE.map((p) => p.id));
+const rebirthChaseUnlockAt = (playerId: string): number => RB_CHASE_AT[playerId] ?? 99;
+const isRebirthChaseUnlocked = (playerId: string, rebirth = liveRebirth): boolean => rebirth >= rebirthChaseUnlockAt(playerId);
+const unlockedRebirthChases = (rebirth = liveRebirth): Player[] => RB_CHASE.filter((p) => isRebirthChaseUnlocked(p.id, rebirth));
+// The Free Pack can still pull home/POTW/season chases, but chase lists never show a Free Pack section — each card is listed only under its home pack.
+const chaseOf = (id: PackId): Player[] => (id === "season" ? SEASON_CHASE[seasonOf()] : id === "free" || id === "standard" ? [] : id === "potw" ? POTW_CHASE : isRebirthPack(id) ? unlockedRebirthChases() : (id === "boom" ? [] : (CHASE[id as HomeId] ?? [])));
+// Boom or Bust (and the Free Pack) can hit a chase 1/1: Boom draws from the home chase players; the Free Pack can hit any home, POTW, or this season's chase, at the same CHASE_SHARE. Rebirth chases stay exclusive to Rebirth packs.
 const chaseDraw = (id: PackId): Player[] => (id === "boom" ? ALL_CHASE : chaseOf(id));
-const isChaseCard = (c: Card): boolean => c.rarity === "super" && CHASE_IDS.has(c.playerId);
+const isRebirthChaseCard = (c: Card): boolean => c.rarity === "super" && RB_CHASE_IDS.has(c.playerId) && (isRebirthPack(c.packId) || (c.via != null && isRebirthPack(c.via)));
+const isChaseCard = (c: Card): boolean => c.rarity === "super" && (CHASE_IDS.has(c.playerId) || isRebirthChaseCard(c));
 const isIns = (r: RarityId): boolean => r === "kings" || r === "walls" || r === "phenom";
 // Pull chance (percent) of a card's rarity in the pack it came from; a named chase 1/1 gets its own, smaller chance.
 const pullChance = (c: Card): number => {
@@ -247,16 +311,16 @@ const rawValue = (p: Player, r: RarityId): number => {
   return Math.max(V_MIN[r], Math.round(v));
 };
 // Per-pack minimum: a pack-specific offset lifts every card so the cheapest Base card in that pack is exactly this value; higher rarities and hype still scale upward from it.
-const PACK_MIN: Record<PackId, number> = { rookie: 30, stars: 54, legends: 120, standard: 6, potw: 5, boom: 5, season: 50, free: 5 };
+const PACK_MIN: Record<PackId, number> = { rookie: 30, stars: 54, legends: 120, standard: 6, potw: 5, boom: 5, season: 50, free: 5, rb1: 60, rb2: 80, rb3: 110 };
 // Premium scale: how much of a card's hype premium above its rarity minimum a pack keeps (Standard keeps 30% so its values suit a low price).
-const PACK_K: Record<PackId, number> = { rookie: 1, stars: 1, legends: 1, standard: 0.3, potw: 0.3, boom: 0.1, season: 1, free: 0.3 };
+const PACK_K: Record<PackId, number> = { rookie: 1, stars: 1, legends: 1, standard: 0.3, potw: 0.3, boom: 0.1, season: 1, free: 0.3, rb1: 1, rb2: 1, rb3: 1 };
 const PACK_OFF = Object.fromEntries(PIDS.map((id) => [id, PACK_MIN[id] - Math.min(...valuePoolOf(id).map((p) => rawValue(p, "base")))])) as Record<PackId, number>;
 const baseValue = (p: Player, r: RarityId, via: PackId = p.packId): number => {
   const raw = rawValue(p, r), k = PACK_K[via];
   return (k === 1 ? raw : Math.round(V_MIN[r] + (raw - V_MIN[r]) * k)) + PACK_OFF[via];
 };
 // Gold and Auto floors per pack: a lift added to every card of that rarity so the cheapest one equals the floor (about 1.5-2x the pack price for Gold, 3-4x for Auto); hype spread above it is kept and 1/1s are untouched.
-const RARITY_FLOOR: Record<PackId, Partial<Record<RarityId, number>>> = { standard: { kings: 190, walls: 190, phenom: 190, gold: 25, potw: 38, auto: 55 }, rookie: { kings: 190, walls: 190, phenom: 190, gold: 70, potw: 338, auto: 512 }, stars: { kings: 190, walls: 190, phenom: 190, gold: 70, potw: 170, auto: 270 }, legends: { kings: 190, walls: 190, phenom: 190, gold: 300, potw: 425, auto: 600 }, season: { kings: 190, walls: 190, gold: 120, potw: 180, auto: 290 }, potw: { potw: 80 }, boom: BOOM_FLOOR, free: { kings: 190, walls: 190, phenom: 190, gold: 25, potw: 38, auto: 55 } };
+const RARITY_FLOOR: Record<PackId, Partial<Record<RarityId, number>>> = { standard: { kings: 190, walls: 190, phenom: 190, gold: 25, potw: 38, auto: 55 }, rookie: { kings: 190, walls: 190, phenom: 190, gold: 70, potw: 338, auto: 512 }, stars: { kings: 190, walls: 190, phenom: 190, gold: 70, potw: 170, auto: 270 }, legends: { kings: 190, walls: 190, phenom: 190, gold: 300, potw: 425, auto: 600 }, season: { kings: 190, walls: 190, gold: 120, potw: 180, auto: 290 }, potw: { potw: 80 }, boom: BOOM_FLOOR, free: { kings: 190, walls: 190, phenom: 190, gold: 25, potw: 38, auto: 55 }, rb1: { kings: 190, walls: 190, phenom: 190, gold: 80, potw: 200, auto: 320 }, rb2: { kings: 190, walls: 190, phenom: 190, gold: 120, potw: 280, auto: 450 }, rb3: { kings: 190, walls: 190, phenom: 190, gold: 200, potw: 380, auto: 580 } };
 const isInsert = (r: RarityId): boolean => r === "kings" || r === "walls" || r === "phenom";
 const RARITY_LIFT = Object.fromEntries(PIDS.map((id) => [id, Object.fromEntries(Object.entries(RARITY_FLOOR[id]).map(([r, f]) => [r, (f as number) - Math.min(...rpool(id, r as RarityId, true).map((p) => baseValue(p, r as RarityId, id)))]))])) as Record<PackId, Record<string, number>>;
 const preValue = (p: Player, r: RarityId, via: PackId = p.packId): number => baseValue(p, r, via) + (RARITY_LIFT[via][r] ?? 0);
@@ -283,6 +347,7 @@ const sourceOf = (c: Card): PackId => (c.via && c.via !== "free" ? c.via : c.pac
 // Chase 1/1s keep their home pack's look and identity even if they were pulled from the Free Pack (packId may still be "free" on the save).
 const originPack = (c: Card): PackId => {
   if (!isChaseCard(c)) return c.packId;
+  if (isRebirthChaseCard(c)) return isRebirthPack(c.packId) ? c.packId : (c.via && isRebirthPack(c.via) ? c.via : "rb1");
   if (POTW_CHASE_IDS.has(c.playerId)) return "potw";
   const p = playerOf(c.playerId);
   return (p.packId === "season" || p.season) ? "season" : p.packId;
@@ -363,6 +428,7 @@ const SETS: SetDef[] = (() => {
   out.push({ id: "potw", name: "Players of the Week (POTW card of each)", group: "master", players: ids(POTW_PLAYERS), need: "potw", reward: POTW_PLAYERS.length * 125 });
   out.push({ id: "chase", name: "Chase 1/1s (every home chase card)", group: "master", players: ids(chase), need: "super", reward: chase.length * 400 });
   out.push({ id: "potw-chase", name: "POTW chase 1/1s", group: "master", players: ids(POTW_CHASE), need: "super", reward: 450 });
+  if (RB_CHASE.length > 0) out.push({ id: "rb-chase", name: "Rebirth chase 1/1s", group: "master", players: ids(RB_CHASE), need: "super", reward: 900 });
   for (const sid of SEASON_IDS) {
     const ch = SEASON_CHASE[sid];
     out.push({ id: "szn-chase-" + sid, name: SEASON_THEME[sid].name + " chase 1/1s", group: "master", players: ids(ch), need: "super", reward: 450 });
@@ -376,7 +442,7 @@ const SETS: SetDef[] = (() => {
 })();
 
 // ---- achievements ----
-interface AchCtx { packs: number; opened: Record<PackId, number>; cards: Card[]; value: number; unique: number; sets: number; daily: number }
+interface AchCtx { packs: number; opened: Record<PackId, number>; cards: Card[]; value: number; unique: number; sets: number; daily: number; rebirth: number }
 interface AchDef { id: string; name: string; desc: string; reward: number; ok: (x: AchCtx) => boolean; prog?: (x: AchCtx) => [number, number] }
 const hasR = (x: AchCtx, r: RarityId): boolean => x.cards.some((c) => c.rarity === r);
 const dalOwned = (x: AchCtx): number => new Set(x.cards.filter((c) => playerOf(c.playerId).team.abbr === "DAL").map((c) => c.playerId)).size;
@@ -410,6 +476,10 @@ const ACH: AchDef[] = [
   cnt("Set Master", "set10", "Complete and claim 10 sets.", 450, 10, (x) => x.sets),
   cnt("Pack Explorer", "allpacks", "Open every kind of pack.", 90, PIDS.length, (x) => PIDS.filter((id) => x.opened[id] > 0).length),
   { id: "ovr99", name: "Maxed Out", desc: "Own a card rated 99.", reward: 45, ok: (x) => x.cards.some((c) => cardOvr(c) >= 99) },
+  { id: "rebirth1", name: "Born Again", desc: "Complete your first Rebirth.", reward: 150, ok: (x) => x.rebirth >= 1 },
+  { id: "rebirth3", name: "Third Life", desc: "Reach Rebirth 3.", reward: 400, ok: (x) => x.rebirth >= 3 },
+  { id: "rebirth5", name: "Five Lives", desc: "Reach Rebirth 5.", reward: 800, ok: (x) => x.rebirth >= 5 },
+  { id: "rbchase", name: "Rebirth Star ★", desc: "Pull an exclusive Rebirth chase 1/1.", reward: 900, ok: (x) => x.cards.some(isRebirthChaseCard) },
 ];
 
 const ATTRS: Record<string, string> = {
@@ -513,8 +583,9 @@ function drawCard(packId: PackId, takenSuper: Set<string>): Card {
   else if (INSERT_POOL[rarity]) { pool = rpool(packId, rarity); if (pool.length === 0) { rarity = "base"; pool = all; } }
   if (rarity === "super") {
     // Owned chase 1/1s stay out of the pool. If every chase for this pack is already owned, fall back to a regular 1/1 (or Auto if none remain).
-    const chase = chaseDraw(packId).filter((p) => !takenSuper.has(p.id));
-    const reg = all.filter((p) => !takenSuper.has(p.id) && !CHASE_IDS.has(p.id));
+    const chaseHeld = isRebirthPack(packId) ? liveHeldRebirthChase : takenSuper;
+    const chase = chaseDraw(packId).filter((p) => !chaseHeld.has(p.id));
+    const reg = all.filter((p) => !takenSuper.has(p.id) && !CHASE_IDS.has(p.id) && !(isRebirthPack(packId) && RB_CHASE_IDS.has(p.id)));
     if (chase.length > 0 && (reg.length === 0 || Math.random() < CHASE_SHARE)) pool = chase;
     else if (reg.length > 0) pool = reg;
     else rarity = "auto";
@@ -526,8 +597,8 @@ function drawCard(packId: PackId, takenSuper: Set<string>): Card {
 
 // ---- persistence (localStorage with in-memory fallback) ----
 const SAVE_KEY = "gl-legends-2026-v2";
-const zeroCounts = (): Record<PackId, number> => ({ rookie: 0, stars: 0, legends: 0, standard: 0, potw: 0, boom: 0, season: 0, free: 0 });
-const defaultMeta = (): Meta => ({ daily: "", dailyN: 0, sets: [], ach: [] });
+const zeroCounts = (): Record<PackId, number> => ({ rookie: 0, stars: 0, legends: 0, standard: 0, potw: 0, boom: 0, season: 0, free: 0, rb1: 0, rb2: 0, rb3: 0 });
+const defaultMeta = (): Meta => ({ daily: "", dailyN: 0, sets: [], ach: [], seasonDay: "", seasonN: 0 });
 const localDay = (d: Date = new Date()): string => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 function loadMeta(raw: unknown): Meta {
   const m = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -535,9 +606,11 @@ function loadMeta(raw: unknown): Meta {
   let daily = typeof m.daily === "string" ? m.daily : "";
   // Old daily-pack saves stored a YYYY-MM-DD claim date. Turn "claimed today" into a timestamp so the 5-minute cooldown can start; older dates are already expired.
   if (/^\d{4}-\d{2}-\d{2}$/.test(daily)) daily = daily === localDay() ? String(Date.now()) : "";
-  return { daily, dailyN: typeof m.dailyN === "number" && m.dailyN >= 0 ? Math.floor(m.dailyN) : 0, sets: strs(m.sets), ach: strs(m.ach) };
+  const seasonDay = typeof m.seasonDay === "string" ? m.seasonDay : "";
+  const seasonN = typeof m.seasonN === "number" && m.seasonN >= 0 ? Math.floor(m.seasonN) : 0;
+  return { daily, dailyN: typeof m.dailyN === "number" && m.dailyN >= 0 ? Math.floor(m.dailyN) : 0, sets: strs(m.sets), ach: strs(m.ach), seasonDay, seasonN };
 }
-const isPack = (v: unknown): v is PackId => v === "rookie" || v === "stars" || v === "legends" || v === "standard" || v === "potw" || v === "boom" || v === "season" || v === "free";
+const isPack = (v: unknown): v is PackId => v === "rookie" || v === "stars" || v === "legends" || v === "standard" || v === "potw" || v === "boom" || v === "season" || v === "free" || v === "rb1" || v === "rb2" || v === "rb3";
 const isRarity = (v: unknown): v is RarityId => typeof v === "string" && v in RB;
 const normKey = (v: string): string => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
 function parsePackFilter(v: unknown): PackId | "ALL" {
@@ -553,6 +626,9 @@ function parsePackFilter(v: unknown): PackId | "ALL" {
     potw: "potw", playeroftheweek: "potw", playeroftheweekpack: "potw",
     boom: "boom", boomorbust: "boom", boomorbustpack: "boom", bust: "boom",
     free: "free", freepack: "free", cooldown: "free", dailypack: "free",
+    rb1: "rb1", awakening: "rb1", awakeningpack: "rb1", rebirth1: "rb1", rebirthone: "rb1",
+    rb2: "rb2", dynasty: "rb2", dynastypack: "rb2", rebirth5: "rb2",
+    rb3: "rb3", ascension: "rb3", ascensionpack: "rb3", rebirth6: "rb3",
   };
   return aliases[k] ?? (isPack(v) ? v : "ALL");
 }
@@ -575,7 +651,7 @@ function asPackId(v: unknown, fallback?: PackId): PackId | null {
   }
   return fallback && isPack(fallback) ? fallback : null;
 }
-const defaultSave = (): Save => ({ v: 2, collection: [], openedCounts: zeroCounts(), soundOn: true, cardSeq: 0, readyPack: null, balance: START_BAL, pulls: {}, supers: [], locked: true, meta: defaultMeta() });
+const defaultSave = (): Save => ({ v: 2, collection: [], openedCounts: zeroCounts(), soundOn: true, cardSeq: 0, readyPack: null, balance: START_BAL, pulls: {}, supers: [], locked: true, meta: defaultMeta(), rebirth: 0, bestPull: null, bestCollection: 0 });
 function saveScore(s: Save): number {
   let packs = 0, pullN = 0;
   for (const id of PIDS) packs += s.openedCounts[id] ?? 0;
@@ -583,7 +659,7 @@ function saveScore(s: Save): number {
   return packs * 1e7 + s.collection.length * 1e4 + pullN * 100 + s.cardSeq + s.meta.sets.length * 20 + s.meta.ach.length + s.meta.dailyN;
 }
 function compactOf(s: Save): Record<string, unknown> {
-  return { v: 2, c: s.collection.map((x) => [x.uid, x.playerId, x.rarity, x.packId, x.seq, x.via ?? null]), o: s.openedCounts, s: s.soundOn ? 1 : 0, q: s.cardSeq, b: s.balance, p: s.pulls, u: s.supers, l: s.locked ? 1 : 0, m: s.meta };
+  return { v: 2, c: s.collection.map((x) => [x.uid, x.playerId, x.rarity, x.packId, x.seq, x.via ?? null]), o: s.openedCounts, s: s.soundOn ? 1 : 0, q: s.cardSeq, b: s.balance, p: s.pulls, u: s.supers, l: s.locked ? 1 : 0, m: s.meta, rb: s.rebirth, bp: s.bestPull, bc: s.bestCollection };
 }
 function inflateRow(raw: string): Record<string, unknown> | null {
   try {
@@ -621,8 +697,38 @@ function loadSave(override?: string): Save {
     const sup = new Set<string>(collection.filter((c) => c.rarity === "super").map((c) => c.playerId));
     if (Array.isArray(row.supers)) { for (const s of row.supers as unknown[]) { if (typeof s === "string" && PBYID[s]) sup.add(s); } }
     const balance = typeof row.balance === "number" && row.balance >= 0 ? Math.round(row.balance) : START_BAL;
-    return { v: 2, collection, openedCounts: oc, soundOn: row.soundOn !== false, cardSeq: seq, readyPack: rp && isPack(rp.packId) && rp.packId !== "free" ? { packId: rp.packId } : null, balance, pulls, supers: Array.from(sup), locked: row.locked !== false, meta: mergeFreeMeta(loadMeta(row.meta)) };
+    const readyPack = rp && isPack(rp.packId) && rp.packId !== "free" ? { packId: rp.packId } : null;
+    const meta = mergeSeasonMeta(mergeFreeMeta(loadMeta(row.meta)));
+    let rebirth: number;
+    if (typeof row.rebirth === "number" && row.rebirth >= 0) rebirth = Math.floor(row.rebirth);
+    else rebirth = inferRebirth(oc, collection, readyPack);
+    setLiveRebirth(rebirth);
+    const colVal = collection.reduce((n, c) => n + cardVal(c), 0);
+    let bestCollection = typeof row.bestCollection === "number" && row.bestCollection >= 0 ? Math.round(row.bestCollection) : 0;
+    if (bestCollection < colVal) bestCollection = colVal;
+    let bestPull = parseBestPull(row.bestPull);
+    if (!bestPull && collection.length > 0) {
+      const top = collection.reduce((a, b) => cardVal(b) > cardVal(a) ? b : a);
+      bestPull = { name: playerOf(top.playerId).name, value: cardVal(top), packId: top.packId, date: "", rarity: top.rarity, playerId: top.playerId };
+    }
+    setLiveHeldRebirthChase(collection.filter(isRebirthChaseCard).map((c) => c.playerId));
+    return { v: 2, collection, openedCounts: oc, soundOn: row.soundOn !== false, cardSeq: seq, readyPack, balance, pulls, supers: Array.from(sup), locked: row.locked !== false, meta, rebirth, bestPull, bestCollection };
   } catch { return defaultSave(); }
+}
+function parseBestPull(raw: unknown): BestPull | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.name !== "string" || typeof o.value !== "number" || !isPack(o.packId) || typeof o.rarity !== "string" || !isRarity(o.rarity)) return null;
+  return { name: o.name, value: Math.round(o.value), packId: o.packId, date: typeof o.date === "string" ? o.date : "", rarity: o.rarity, playerId: typeof o.playerId === "string" ? o.playerId : "" };
+}
+function nextBests(prev: { bestPull: BestPull | null; bestCollection: number }, cards: Card[], nextCol: Card[], at: Date = new Date()): { bestPull: BestPull | null; bestCollection: number } {
+  let bp = prev.bestPull;
+  for (const c of cards) {
+    const v = cardVal(c);
+    if (!bp || v > bp.value) bp = { name: playerOf(c.playerId).name, value: v, packId: c.packId, date: formatLongDate(at), rarity: c.rarity, playerId: c.playerId };
+  }
+  const bv = nextCol.reduce((n, c) => n + cardVal(c), 0);
+  return { bestPull: bp, bestCollection: Math.max(prev.bestCollection, bv) };
 }
 // ---- persistence chain: localStorage, sessionStorage, IndexedDB, small cookie, window.name ----
 // The canvas kit has no storage hook, so this probes each browser mechanism at runtime and writes to every one that works.
@@ -785,7 +891,7 @@ function fullFromRow(c: Record<string, unknown>): string | null {
   if (!c || typeof c !== "object") return null;
   if ((c.v === 2 || c.v === 1) && Array.isArray(c.c) && !Array.isArray(c.collection)) {
     const rows = (c.c as unknown[][]).map((a) => ({ uid: a[0], playerId: a[1], rarity: a[2], packId: a[3], seq: a[4], via: a[5] }));
-    return JSON.stringify({ v: 2, collection: rows, openedCounts: c.o, soundOn: c.s !== 0, cardSeq: c.q, balance: c.b, pulls: c.p, supers: c.u, locked: c.l !== 0, readyPack: null, meta: c.m });
+    return JSON.stringify({ v: 2, collection: rows, openedCounts: c.o, soundOn: c.s !== 0, cardSeq: c.q, balance: c.b, pulls: c.p, supers: c.u, locked: c.l !== 0, readyPack: null, meta: c.m, rebirth: c.rb, bestPull: c.bp, bestCollection: c.bc });
   }
   if (c.v === 2 || c.v === 1 || Array.isArray(c.collection)) return JSON.stringify(c);
   return null;
@@ -1297,6 +1403,9 @@ const PCOL: Record<PackId, PackSkin> = {
   boom: { a: "#d6141e", b: "#120608", ink: "#ffffff", edge: "#ff9a8a" },
   season: SEASON_THEME[seasonOf()].skin,
   free: { a: "#1fd37a", b: "#05261a", ink: "#ffffff", edge: "#d6ffe9" },
+  rb1: { a: "#8a3dff", b: "#1a0833", ink: "#ffffff", edge: "#e2c8ff" },
+  rb2: { a: "#c41a3a", b: "#2a0a10", ink: "#ffffff", edge: "#ffd0a8" },
+  rb3: { a: "#d4b14a", b: "#050510", ink: "#ffffff", edge: "#ffe9a8" },
 };
 const skinOf = (card: Card): PackSkin => {
   const id = isChaseCard(card) ? originPack(card) : sourceOf(card);
@@ -1537,6 +1646,9 @@ function PackEmblem(p: { id: PackId | "free" }): ReactNode {
     else if (sid === "thanksgiving") body = <>{grad("#ffd7a0", "#c45c12")}<ellipse cx="12" cy="14.5" rx="5.2" ry="4.4" fill={fill} stroke="#ffd7a0" strokeWidth="0.9" /><path d="M12 10.2 C10 6.5 7 5.5 5.5 7.2 C8.2 8 10.2 10.5 12 10.2 M12 10.2 C14 6.5 17 5.5 18.5 7.2 C15.8 8 13.8 10.5 12 10.2" fill="#e07020" stroke="#ffd7a0" strokeWidth="0.7" /><circle cx="12" cy="13.6" r="1.5" fill="#2a1408" /><path d="M12 18.8 V21.4 M10.2 21.4 H13.8" stroke="#ffd7a0" strokeWidth="1.1" strokeLinecap="round" /></>;
     else body = <>{grad("#ffe08a", "#1f8a4a")}<path d="M12 3 L13.6 9 H18.5 L14.6 12.4 L16.2 18.2 L12 14.8 L7.8 18.2 L9.4 12.4 L5.5 9 H10.4 Z" fill="#c81c2c" stroke="#ffe08a" strokeWidth="0.7" /><path d="M12 8 V22 M8.5 21.4 H15.5" stroke="#1f8a4a" strokeWidth="1.6" strokeLinecap="round" /><path d="M12 10 L7.2 16.5 M12 10 L16.8 16.5 M12 12 L8.6 18.5 M12 12 L15.4 18.5" stroke="#c8ffd0" strokeWidth="1.3" strokeLinecap="round" /></>;
   }
+  else if (p.id === "rb1") body = <>{grad("#e2c8ff", "#8a3dff")}<path d="M12 3.2 L20 7.2 V13.6 C20 17.6 16.4 20.6 12 21.6 C7.6 20.6 4 17.6 4 13.6 V7.2 Z" fill={fill} stroke="#e2c8ff" strokeWidth="1" /><path d="M12 8.2 L13.5 11.4 H17 L14.4 13.4 L15.4 16.6 L12 14.8 L8.6 16.6 L9.6 13.4 L7 11.4 H10.5 Z" fill="#fff6c8" /></>;
+  else if (p.id === "rb2") body = <>{grad("#ffd0a8", "#c41a3a")}<path d="M6 19 L8 8 L12 10.5 L16 8 L18 19 Z" fill={fill} stroke="#ffd0a8" strokeWidth="1" strokeLinejoin="round" /><path d="M9.2 8.2 C9.2 5.8 14.8 5.8 14.8 8.2" fill="none" stroke="#ffe9a8" strokeWidth="1.3" /><circle cx="12" cy="5.2" r="1.5" fill="#ffe9a8" /></>;
+  else if (p.id === "rb3") body = <>{grad("#ffe9a8", "#d4b14a")}<polygon points="12,2.2 14.8,8.4 21.4,9 16.5,13.4 17.9,20 12,16.8 6.1,20 7.5,13.4 2.6,9 9.2,8.4" fill={fill} stroke="#fff6c8" strokeWidth="0.9" /><circle cx="12" cy="12" r="2.4" fill="#0a0a14" stroke="#fff6c8" strokeWidth="0.7" /></>;
   else body = <>{grad("#f2fff8", "#4fe39a")}<path d="M7 3 H17 V9 C17 12.3 14.8 14.5 12 14.5 C9.2 14.5 7 12.3 7 9 Z" fill={fill} stroke="#d6ffe9" strokeWidth="1" strokeLinejoin="round" /><path d="M7 5 H3.8 V7 C3.8 9 5.2 10.3 7.3 10.6 M17 5 H20.2 V7 C20.2 9 18.8 10.3 16.7 10.6" fill="none" stroke="#d6ffe9" strokeWidth="1.3" strokeLinecap="round" /><path d="M12 14.5 V18" stroke="#d6ffe9" strokeWidth="1.8" /><path d="M8 21.5 H16 V18.3 H8 Z" fill={fill} stroke="#d6ffe9" strokeWidth="1" strokeLinejoin="round" /></>;
   return <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true" style={{ filter: "drop-shadow(0 2px 2px rgba(0,0,0,0.4))" }}>{body}</svg>;
 }
@@ -1586,22 +1698,25 @@ function PackArt(p: { tearing: boolean; packId: PackId; charged: boolean; disabl
 }
 
 function ChaseRow(p: { packId: PackId; supers: string[]; season?: SeasonId }): ReactNode {
-  const list = p.packId === "season" ? SEASON_CHASE[p.season ?? seasonOf()] : chaseOf(p.packId);
+  if (p.packId === "free") return null;
+  const list = p.packId === "season" ? SEASON_CHASE[p.season ?? seasonOf()] : isRebirthPack(p.packId) ? RB_CHASE : chaseOf(p.packId);
   if (list.length === 0) return null;
-  const title = p.packId === "season" ? "Season Pack · " + SEASON_THEME[p.season ?? seasonOf()].name : packOf(p.packId).name;
+  const title = p.packId === "season" ? "Season Pack · " + SEASON_THEME[p.season ?? seasonOf()].name : isRebirthPack(p.packId) ? "Rebirth Packs" : packOf(p.packId).name;
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, textAlign: "center" }}>★ Chase 1/1s · {title}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(" + Math.min(list.length, 3) + ", minmax(0, 124px))", gap: 10, justifyContent: "center" }}>
         {list.map((pl) => {
           const gone = p.supers.includes(pl.id);
-          const card: Card = { uid: "chase-" + pl.id, playerId: pl.id, rarity: "super", packId: p.packId, seq: 0 };
+          const locked = isRebirthPack(p.packId) && !isRebirthChaseUnlocked(pl.id);
+          const home: PackId = isRebirthPack(p.packId) ? "rb1" : p.packId;
+          const card: Card = { uid: "chase-" + pl.id, playerId: pl.id, rarity: "super", packId: home, seq: 0 };
           return (
-            <div key={pl.id} style={{ opacity: gone ? 0.55 : 1, filter: gone ? "grayscale(0.7)" : undefined }}>
-              <div style={{ height: 196, borderRadius: 12, boxShadow: gone ? "none" : "0 0 0 2px #ffd76a, 0 0 22px rgba(255,80,200,0.7), 0 0 36px rgba(80,200,255,0.45)", animation: gone ? undefined : "glChaseGlow " + sp("1.8s", "3.6s") + " ease-in-out infinite" }}><CardFace card={card} compact /></div>
+            <div key={pl.id} style={{ opacity: gone || locked ? 0.55 : 1, filter: gone || locked ? "grayscale(0.7)" : undefined }}>
+              <div style={{ height: 196, borderRadius: 12, boxShadow: gone || locked ? "none" : "0 0 0 2px #ffd76a, 0 0 22px rgba(255,80,200,0.7), 0 0 36px rgba(80,200,255,0.45)", animation: gone || locked ? undefined : "glChaseGlow " + sp("1.8s", "3.6s") + " ease-in-out infinite" }}><CardFace card={card} compact /></div>
               <div style={{ marginTop: 6, textAlign: "center", fontSize: 10, lineHeight: 1.35 }}>
-                <div style={{ fontWeight: 800 }}><span style={{ color: "#ffd76a" }}>★</span> 1 of 1 · {gone ? "Pulled" : "Available"}</div>
-                <div style={{ opacity: 0.85 }}>{money(cardVal(card))} · {formatPct(pullChance(card))}</div>
+                <div style={{ fontWeight: 800 }}><span style={{ color: "#ffd76a" }}>★</span> 1 of 1 · {gone ? "Pulled" : locked ? "Rebirth " + rebirthChaseUnlockAt(pl.id) + " to unlock" : "Available"}</div>
+                <div style={{ opacity: 0.85 }}>{locked ? "Exclusive Rebirth chase" : money(cardVal(card)) + " · " + formatPct(pullChance(card))}</div>
               </div>
             </div>
           );
@@ -1724,6 +1839,111 @@ function resetFreeClaimForTests(): void {
     try { store.removeItem(FREE_AT_KEY); } catch { /* blocked */ }
   }
 }
+
+// Season pack: 10 opens per local calendar day. A side-channel stamp (plus meta.seasonDay / seasonN) means a backup restore, collection reset, stale tab, or clock rollback cannot rewind today's count.
+const SEASON_DAILY_LIMIT = 10;
+const SEASON_DAY_KEY = "gl-legends-2026-season-day";
+let memSeasonDay = "";
+let memSeasonN = 0;
+let memSeasonAt = 0;
+let seasonClaimArmed = 0;
+function parseSeasonStamp(raw: string | null): { day: string; n: number; at: number } {
+  if (!raw) return { day: "", n: 0, at: 0 };
+  const parts = raw.split("|");
+  const day = parts[0] ?? "";
+  const n = Math.max(0, Math.floor(Number(parts[1]) || 0));
+  const at = Number(parts[2]) || 0;
+  return { day, n, at: Number.isFinite(at) && at > 0 ? at : 0 };
+}
+function readStoreSeasonStamp(): { day: string; n: number; at: number } {
+  let best = { day: memSeasonDay, n: memSeasonN, at: memSeasonAt };
+  if (typeof window === "undefined") return best;
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    try {
+      const st = parseSeasonStamp(store.getItem(SEASON_DAY_KEY));
+      if (st.at > best.at || (st.at === best.at && st.n > best.n)) best = st;
+    } catch { /* blocked */ }
+  }
+  return best;
+}
+function persistSeasonStamp(day: string, n: number, at: number): void {
+  const cur = readStoreSeasonStamp();
+  // Never lower the same day's count, and never rewind a later stamp (clock rollback / stale restore).
+  if (cur.at > at) return;
+  if (cur.day === day && cur.n > n && cur.at >= at) return;
+  memSeasonDay = day;
+  memSeasonN = n;
+  memSeasonAt = Math.max(memSeasonAt, at);
+  if (typeof window === "undefined") return;
+  const raw = day + "|" + n + "|" + memSeasonAt;
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    try { store.setItem(SEASON_DAY_KEY, raw); } catch { /* blocked */ }
+  }
+}
+function peekSeasonUsed(metaDay = "", metaN = 0, now = Date.now()): { day: string; n: number } {
+  const today = localDay(new Date(now));
+  const st = readStoreSeasonStamp();
+  const metaAt = 0;
+  const cand = [
+    { day: st.day, n: st.n, at: st.at },
+    { day: memSeasonDay, n: memSeasonN, at: memSeasonAt },
+    { day: metaDay, n: metaN, at: metaAt },
+  ];
+  let best = { day: "", n: 0, at: 0 };
+  for (const c of cand) {
+    if (!c.day) continue;
+    if (c.at > best.at || (c.at === best.at && (c.day > best.day || (c.day === best.day && c.n > best.n)))) best = c;
+  }
+  // Clock rollback: if "now" is earlier than the last stamp, keep the stamped day's count.
+  if (best.at > 0 && now < best.at) return { day: best.day, n: best.n };
+  if (best.day === today) return { day: today, n: best.n };
+  return { day: today, n: 0 };
+}
+function seasonUsedToday(meta: Meta, now = Date.now()): number {
+  return peekSeasonUsed(meta.seasonDay, meta.seasonN, now).n + seasonClaimArmed;
+}
+function seasonLeftToday(meta: Meta, now = Date.now()): number {
+  return Math.max(0, SEASON_DAILY_LIMIT - seasonUsedToday(meta, now));
+}
+function armSeasonClaim(meta: Meta, count = 1, now = Date.now()): boolean {
+  if (count <= 0 || seasonClaimArmed > 0) return false;
+  if (seasonLeftToday(meta, now) < count) return false;
+  const used = peekSeasonUsed(meta.seasonDay, meta.seasonN, now);
+  const nextN = used.n + count;
+  persistSeasonStamp(used.day, nextN, now);
+  seasonClaimArmed = count;
+  return true;
+}
+function consumeSeasonClaim(): number {
+  const n = seasonClaimArmed;
+  seasonClaimArmed = 0;
+  return n;
+}
+function mergeSeasonMeta(m: Meta): Meta {
+  const peek = peekSeasonUsed(m.seasonDay, m.seasonN);
+  if (peek.day && (peek.day !== m.seasonDay || peek.n > (m.seasonN ?? 0))) {
+    persistSeasonStamp(peek.day, peek.n, memSeasonAt || Date.now());
+    return { ...m, seasonDay: peek.day, seasonN: peek.n };
+  }
+  if ((m.seasonN ?? 0) > 0 && m.seasonDay) persistSeasonStamp(m.seasonDay, m.seasonN, memSeasonAt || Date.now());
+  return m;
+}
+function applySeasonOpen(meta: Meta, count: number, now = Date.now()): Meta {
+  const used = peekSeasonUsed(meta.seasonDay, meta.seasonN, now);
+  const next = { ...meta, seasonDay: used.day, seasonN: used.n + Math.max(0, count) };
+  persistSeasonStamp(next.seasonDay, next.seasonN, now);
+  return next;
+}
+function resetSeasonClaimForTests(): void {
+  memSeasonDay = "";
+  memSeasonN = 0;
+  memSeasonAt = 0;
+  seasonClaimArmed = 0;
+  if (typeof window === "undefined") return;
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    try { store.removeItem(SEASON_DAY_KEY); } catch { /* blocked */ }
+  }
+}
 function FreeClock(p: { until: number; onReady: () => void }): ReactNode {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -1836,6 +2056,10 @@ export default function GridironLegends() {
       if (!/maximum-scale/.test(c)) meta.setAttribute("content", c + ", maximum-scale=1");
     } catch { /* ignore */ }
   }, []);
+  const [rebirth, setRebirth] = useState(boot.rebirth);
+  const [bestPull, setBestPull] = useState<BestPull | null>(boot.bestPull);
+  const [bestCollection, setBestCollection] = useState(boot.bestCollection);
+  const [confirmRebirth, setConfirmRebirth] = useState(false);
   const [locked, setLocked] = useState(boot.locked);
   const [savedAt, setSavedAt] = useState<{ t: number; manual: boolean } | null>(null);
   const [backupCode, setBackupCode] = useState("");
@@ -1872,7 +2096,9 @@ export default function GridironLegends() {
   const [inspectCard, setInspectCard] = useState<Card | null>(null);
   const soundRef = useRef(soundOn);
   soundRef.current = soundOn;
-  latestRef.current = { v: 2, collection, openedCounts, soundOn, cardSeq, readyPack, balance, pulls, supers, locked, meta };
+  latestRef.current = { v: 2, collection, openedCounts, soundOn, cardSeq, readyPack, balance, pulls, supers, locked, meta, rebirth, bestPull, bestCollection };
+  setLiveRebirth(rebirth);
+  setLiveHeldRebirthChase(collection.filter(isRebirthChaseCard).map((c) => c.playerId));
   const busyRef = useRef(false);
   const genRef = useRef(0);
 
@@ -1901,7 +2127,7 @@ export default function GridironLegends() {
 
   useEffect(() => {
     if (!persistReady) return;
-    const ok = writeSave({ v: 2, collection, openedCounts, soundOn, cardSeq, readyPack, balance, pulls, supers, locked, meta });
+    const ok = writeSave({ v: 2, collection, openedCounts, soundOn, cardSeq, readyPack, balance, pulls, supers, locked, meta, rebirth, bestPull, bestCollection });
     setPersistOk(ok);
     if (ok) setSavedAt({ t: Date.now(), manual: false });
     void lastIdbWrite.then((idb) => {
@@ -1909,7 +2135,7 @@ export default function GridironLegends() {
       setPersistOk(true);
       setSavedAt((prev) => prev ?? { t: Date.now(), manual: false });
     });
-  }, [persistReady, collection, openedCounts, soundOn, readyPack, balance, pulls, supers, locked, meta]);
+  }, [persistReady, collection, openedCounts, soundOn, readyPack, balance, pulls, supers, locked, meta, rebirth, bestPull, bestCollection]);
 
   const filtersBooted = useRef(false);
   useEffect(() => {
@@ -1951,13 +2177,17 @@ export default function GridironLegends() {
 
   useEffect(() => {
     const refresh = (): void => setDayTick((n) => n + 1);
-    const onStor = (e: StorageEvent): void => { if (e.key === FREE_AT_KEY || e.key === SAVE_KEY) refresh(); };
+    const onStor = (e: StorageEvent): void => { if (e.key === FREE_AT_KEY || e.key === SEASON_DAY_KEY || e.key === SAVE_KEY) refresh(); };
     const onVis = (): void => { if (document.visibilityState === "visible") refresh(); };
     window.addEventListener("storage", onStor);
     document.addEventListener("visibilitychange", onVis);
+    const now = new Date();
+    const nextMid = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+    const mid = window.setTimeout(refresh, Math.max(250, nextMid.getTime() - now.getTime()));
     return () => {
       window.removeEventListener("storage", onStor);
       document.removeEventListener("visibilitychange", onVis);
+      window.clearTimeout(mid);
     };
   }, []);
 
@@ -2044,11 +2274,21 @@ export default function GridironLegends() {
       // Only claimDaily may open a Free Pack, and only by consuming the one-shot token it just armed.
       if (freeId !== "free" || !consumeFreeClaim()) return;
     }
+    if (!isPackUnlocked(id, latestRef.current.rebirth)) { setNotice("Rebirth " + packUnlockAt(id) + " to unlock the " + PB[id].name + "."); return; }
     const price = freeId ? 0 : PB[id].price;
     if (balance < price) { setNotice("Not enough funds — the " + PB[id].name + " costs " + money(price) + " and you have " + money(balance) + ". Sell cards from your binder to get more."); return; }
+    if (id === "season") {
+      if (!armSeasonClaim(latestRef.current.meta, 1)) { setNotice("The Season pack is limited to 10 opens per day. Come back after midnight."); setDayTick((n) => n + 1); return; }
+      consumeSeasonClaim();
+      const used = peekSeasonUsed(latestRef.current.meta.seasonDay, latestRef.current.meta.seasonN);
+      const nextMeta = { ...latestRef.current.meta, seasonDay: used.day, seasonN: used.n };
+      latestRef.current = { ...latestRef.current, meta: nextMeta };
+      setMeta(nextMeta);
+    }
     unlockAudio();
     resetView();
     setConfirmReset(false);
+    setConfirmRebirth(false);
     if (!freeId) playSound("tear", soundRef.current);
     let card: Card;
     try { card = drawCard(id, new Set(takenSuper)); } catch { return; }
@@ -2058,10 +2298,15 @@ export default function GridironLegends() {
     setBusy(true);
     setReadyPack(null);
     setPackId(id);
-    setCollection((prev) => prev.concat([card]));
+    const nextCol = latestRef.current.collection.concat([card]);
+    const rec = nextBests(latestRef.current, [card], nextCol);
+    setCollection(nextCol);
+    setBestPull(rec.bestPull);
+    setBestCollection(rec.bestCollection);
+    latestRef.current = { ...latestRef.current, collection: nextCol, bestPull: rec.bestPull, bestCollection: rec.bestCollection };
     setBalance((b) => b - price);
     addPulls([card]);
-    setOpenedCounts((s) => ({ ...s, [id]: s[id] + 1 }));
+    setOpenedCounts((s) => ({ ...s, [id]: (s[id] ?? 0) + 1 }));
     setTearHot(card.rarity === "super");
     setReveal({ ...card, flipped: false });
     setStage("tearing");
@@ -2079,20 +2324,36 @@ export default function GridironLegends() {
   const openTen = (): void => {
     const id = readyPack?.packId ?? selectedPack;
     if (busyRef.current || !id || id === "free") return;
+    if (!isPackUnlocked(id, latestRef.current.rebirth)) { setNotice("Rebirth " + packUnlockAt(id) + " to unlock the " + PB[id].name + "."); return; }
     if (balance < PB[id].price * 10) { setNotice("Not enough funds — 10 " + PB[id].name + "s cost " + money(PB[id].price * 10) + " and you have " + money(balance) + "."); return; }
+    if (id === "season") {
+      if (seasonLeftToday(latestRef.current.meta) < 10) { setNotice("Not enough Season opens left today — " + seasonLeftToday(latestRef.current.meta) + " of 10 remaining. Come back after midnight, or open them one at a time."); setDayTick((n) => n + 1); return; }
+      if (!armSeasonClaim(latestRef.current.meta, 10)) { setNotice("The Season pack is limited to 10 opens per day. Come back after midnight."); setDayTick((n) => n + 1); return; }
+      consumeSeasonClaim();
+      const used = peekSeasonUsed(latestRef.current.meta.seasonDay, latestRef.current.meta.seasonN);
+      const nextMeta = { ...latestRef.current.meta, seasonDay: used.day, seasonN: used.n };
+      latestRef.current = { ...latestRef.current, meta: nextMeta };
+      setMeta(nextMeta);
+    }
     unlockAudio();
     resetView();
     setConfirmReset(false);
+    setConfirmRebirth(false);
     genRef.current += 1;
     const taken = new Set(takenSuper);
     const cards: Card[] = [];
     try { for (let i = 0; i < 10; i++) cards.push(drawCard(id, taken)); } catch { return; }
     setReadyPack(null);
     setPackId(id);
-    setCollection((prev) => prev.concat(cards));
+    const nextCol = latestRef.current.collection.concat(cards);
+    const rec = nextBests(latestRef.current, cards, nextCol);
+    setCollection(nextCol);
+    setBestPull(rec.bestPull);
+    setBestCollection(rec.bestCollection);
+    latestRef.current = { ...latestRef.current, collection: nextCol, bestPull: rec.bestPull, bestCollection: rec.bestCollection };
     setBalance((b) => b - PB[id].price * 10);
     addPulls(cards);
-    setOpenedCounts((s) => ({ ...s, [id]: s[id] + 10 }));
+    setOpenedCounts((s) => ({ ...s, [id]: (s[id] ?? 0) + 10 }));
     setMulti(cards);
     setMultiN(10);
     setStage("multi");
@@ -2146,6 +2407,13 @@ export default function GridironLegends() {
     setSelectedPack(id);
     setOddsPack(null);
     setConfirmReset(false);
+    setConfirmRebirth(false);
+    if (!isPackUnlocked(id, latestRef.current.rebirth)) {
+      setReadyPack(null);
+      setPackId(id);
+      if (stage !== "idle" && !opening) { genRef.current += 1; setStage("idle"); resetView(); }
+      return;
+    }
     if (opening) return;
     setReadyPack({ packId: id });
     setPackId(id);
@@ -2183,8 +2451,14 @@ export default function GridironLegends() {
     setSelectedPack(null);
     setOddsPack(null);
     setInspectCard(null);
+    setRebirth(0);
+    setBestPull(null);
+    setBestCollection(0);
+    setConfirmRebirth(false);
+    setLiveRebirth(0);
+    setLiveHeldRebirthChase([]);
     const reset = defaultSave();
-    const keptMeta = mergeFreeMeta({ ...reset.meta, daily: latestRef.current.meta.daily, dailyN: latestRef.current.meta.dailyN });
+    const keptMeta = mergeSeasonMeta(mergeFreeMeta({ ...reset.meta, daily: latestRef.current.meta.daily, dailyN: latestRef.current.meta.dailyN, seasonDay: latestRef.current.meta.seasonDay, seasonN: latestRef.current.meta.seasonN }));
     writeSave({ ...reset, meta: keptMeta }, true);
   };
 
@@ -2264,7 +2538,7 @@ export default function GridironLegends() {
     setReadyPack({ packId }); setSelectedPack(packId);
   };
 
-  const snapshot = (): Save => ({ v: 2, collection, openedCounts, soundOn, cardSeq, readyPack, balance, pulls, supers, locked, meta });
+  const snapshot = (): Save => ({ v: 2, collection, openedCounts, soundOn, cardSeq, readyPack, balance, pulls, supers, locked, meta, rebirth, bestPull, bestCollection });
 
   useEffect(() => {
     let live = true;
@@ -2325,8 +2599,11 @@ export default function GridironLegends() {
   const applyRestore = (s: Save, silent = false): void => {
     genRef.current += 1;
     cardSeq = Math.max(cardSeq, s.cardSeq);
-    const restored: Save = { ...s, meta: mergeFreeMeta(s.meta), readyPack: s.readyPack && s.readyPack.packId !== "free" ? s.readyPack : null };
+    const restored: Save = { ...s, meta: mergeSeasonMeta(mergeFreeMeta(s.meta)), readyPack: s.readyPack && s.readyPack.packId !== "free" && isPackUnlocked(s.readyPack.packId, s.rebirth) ? s.readyPack : null };
     setCollection(restored.collection); setOpenedCounts(restored.openedCounts); setBalance(restored.balance); setPulls(restored.pulls); setSupers(restored.supers); setSoundOn(restored.soundOn); setLocked(restored.locked); setMeta(restored.meta); achDone.current = new Set(restored.meta.ach);
+    setRebirth(restored.rebirth); setBestPull(restored.bestPull); setBestCollection(restored.bestCollection); setConfirmRebirth(false);
+    setLiveRebirth(restored.rebirth);
+    setLiveHeldRebirthChase(restored.collection.filter(isRebirthChaseCard).map((c) => c.playerId));
     setReadyPack(null); setStage("idle"); resetView(); clearBusy(); setSelectedPack(null); setOddsPack(null); setInspectCard(null);
     setPendingRestore(null); setRestoreText(""); setBackupCode("");
     setTeamFilter("ALL"); setRarityFilter("ALL"); setPackFilter("ALL"); setQuery("");
@@ -2377,7 +2654,32 @@ export default function GridironLegends() {
     for (const c of collection) { const s = by[c.rarity] ?? new Set<string>(); s.add(c.playerId); by[c.rarity] = s; }
     return Object.fromEntries(SETS.map((s) => { const own = s.need ? by[s.need] : any; return [s.id, own ? s.players.filter((id) => own.has(id)).length : 0]; })) as Record<string, number>;
   }, [collection]);
-  const achCtx: AchCtx = { packs: totalPacks, opened: openedCounts, cards: collection, value: binderValue, unique: uniquePlayers, sets: meta.sets.length, daily: meta.dailyN };
+  const nextRebirthAt = rebirthReq(rebirth);
+  const canRebirth = binderValue >= nextRebirthAt;
+  const doRebirth = (): void => {
+    if (opening || busyRef.current) return;
+    if (!canRebirth) { setNotice("Rebirth needs a collection worth " + money(nextRebirthAt) + ". Yours is worth " + money(binderValue) + "."); return; }
+    if (!confirmRebirth) { setConfirmRebirth(true); return; }
+    const next = rebirth + 1;
+    const gained = unlocksAt(next);
+    const chaseNow = unlockedRebirthChases(next).filter((p) => !unlockedRebirthChases(rebirth).some((q) => q.id === p.id));
+    setConfirmRebirth(false);
+    setRebirth(next);
+    setLiveRebirth(next);
+    setBalance(START_BAL);
+    setReadyPack(null);
+    setSelectedPack(null);
+    setOddsPack(null);
+    if (stage !== "idle") { genRef.current += 1; setStage("idle"); resetView(); }
+    const bits: string[] = [];
+    if (gained.length) bits.push(gained.map((id) => PB[id].name).join(", "));
+    if (chaseNow.length) bits.push(chaseNow.length + " Rebirth chase 1/1s (" + chaseNow.map((p) => p.name).join(", ") + ")");
+    setNotice("Rebirth " + next + "! Cards kept, coins reset to " + money(START_BAL) + (bits.length ? ". Unlocked: " + bits.join(" · ") : "."));
+    latestRef.current = { ...latestRef.current, rebirth: next, balance: START_BAL, readyPack: null };
+    if (persistReadyRef.current) writeSave(latestRef.current);
+  };
+  const seasonLeft = seasonLeftToday(meta);
+  const achCtx: AchCtx = { packs: totalPacks, opened: openedCounts, cards: collection, value: binderValue, unique: uniquePlayers, sets: meta.sets.length, daily: meta.dailyN, rebirth };
   const revealPending = stage === "tearing" || (stage === "reveal" && reveal !== null && !reveal.flipped);
   useEffect(() => {
     if (revealPending) return;
@@ -2466,8 +2768,9 @@ export default function GridironLegends() {
   const dalShown = stage === "reveal" ? (reveal && reveal.flipped && isDal(reveal) ? 1 : 0) : stage === "multi" ? multi.filter(isDal).length : 0;
   const selected = selectedPack ? packOf(selectedPack) : null;
   const curPack = packOf(readyPack?.packId ?? packId);
-  const canBuy1 = balance >= curPack.price;
-  const canBuy10 = balance >= curPack.price * 10;
+  const packReady = isPackUnlocked(curPack.id, rebirth) && (curPack.id !== "season" || seasonLeft > 0);
+  const canBuy1 = packReady && balance >= curPack.price;
+  const canBuy10 = packReady && balance >= curPack.price * 10 && (curPack.id !== "season" || seasonLeft >= 10);
   const multiTotal = multi.reduce((s, c) => s + cardVal(c), 0);
   const savedText = savedAt ? (savedAt.manual ? "Saved ✓ at " : "Last saved ") + timeStr(savedAt.t) + (savedAt.manual ? "" : " (autosave on)") : "";
   const shake = fx && (fx.rarity === "super" || fx.rarity === "auto" || fx.rarity === "potw") ? (fx.rarity === "super" && !rm() ? "glBigShake 0.75s ease" : "glScreenShake 0.45s ease") : undefined;
@@ -2479,7 +2782,7 @@ export default function GridironLegends() {
       {teamFx ? <TeamFx team={teamFx.team} rarity={teamFx.rarity} token={teamFx.token} /> : null}
       <div style={{ marginTop: -6 }}>
         <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.15, letterSpacing: 0.3, color: "#d4920a" }}>Version {VERSION}</div>
-        <div style={{ marginTop: 4, fontSize: 13, fontWeight: 700, letterSpacing: 0.2, color: "#ffe27a" }}>{"Kings, Phenoms & Chase Update"}</div>
+        <div style={{ marginTop: 4, fontSize: 13, fontWeight: 700, letterSpacing: 0.2, color: "#ffe27a" }}>{"Rebirth, Records & Chase Odds"}</div>
         <button type="button" onClick={saveNow} aria-label="Don't forget to save the game. Tap to save." style={{ appearance: "none", display: "inline-block", marginTop: 8, padding: "6px 12px", borderRadius: 999, border: "1px solid rgba(255,226,122,0.55)", background: "linear-gradient(180deg, #0b2447 0%, #07303a 100%)", color: "#ffe27a", font: "inherit", fontSize: 12, fontWeight: 700, lineHeight: 1.3, cursor: "pointer", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>Don't forget to save the game 😁</button>
         <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, opacity: 0.6 }}>Fan-made simulator. Not affiliated with the NFL or any card company.</div>
       </div>
@@ -2510,7 +2813,12 @@ export default function GridironLegends() {
             </div>
           ) : null}
           {balance < MIN_PRICE && collection.length === 0 ? <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><span style={{ fontSize: 13 }}>You can't afford a pack and have no cards to sell.</span><Button label={"Get " + money(BAILOUT) + " bailout"} variant="primary" onClick={bailout} /></div> : null}
-          {(() => { const nx = nextSeasonChange(); return <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.22)", border: "1px solid " + SEASON_THEME[seasonOf()].trim, fontSize: 13, lineHeight: 1.4 }}><div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>🎟 Season pack · {SEASON_THEME[seasonOf()].name}</div><div style={{ opacity: 0.85, marginTop: 3 }}>Active now ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nx.id].name} on {formatLongDate(nx.at)}. Pulled Season cards stay in your collection after it switches, and only this season's 3 ★ chase 1/1s can be pulled until then.</div></div>; })()}
+          {(() => { const nx = nextSeasonChange(); return <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 12, background: "rgba(0,0,0,0.22)", border: "1px solid " + SEASON_THEME[seasonOf()].trim, fontSize: 13, lineHeight: 1.4 }}><div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>🎟 Season pack · {SEASON_THEME[seasonOf()].name}</div><div style={{ opacity: 0.85, marginTop: 3 }}>Active now ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nx.id].name} on {formatLongDate(nx.at)}. Pulled Season cards stay in your collection after it switches, and only this season's 3 ★ chase 1/1s can be pulled until then. Limited to 10 opens per day (resets at midnight).</div></div>; })()}
+          <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 12, background: "rgba(40,16,70,0.45)", border: "1px solid rgba(226,200,255,0.4)", fontSize: 13, lineHeight: 1.4 }}>
+            <div style={{ fontWeight: 800 }}>Rebirth {rebirth}</div>
+            <div style={{ opacity: 0.85, marginTop: 3 }}>Rebirthing resets your coins to {money(START_BAL)} but keeps every card. Next Rebirth at collection value {money(nextRebirthAt)} (now {money(binderValue)}). {unlocksAt(rebirth + 1).length ? "Unlocks: " + unlocksAt(rebirth + 1).map((id) => PB[id].name.replace(" Pack", "")).join(", ") + "." : "More Rebirths after that raise the threshold and keep the exclusive packs open."}</div>
+            <div style={{ marginTop: 8 }}><Button label={confirmRebirth ? "Confirm Rebirth · coins reset, cards kept" : "Rebirth"} variant="primary" onClick={doRebirth} disabled={opening || !canRebirth} />{confirmRebirth ? <Button label="Cancel" onClick={() => setConfirmRebirth(false)} /> : null}{!canRebirth ? <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.75 }}>Need {money(nextRebirthAt - binderValue)} more in the binder</span> : null}</div>
+          </div>
           <div className="gl-grid3" style={{ marginTop: 16 }}>
             <div className="gl-packcell">
               <button type="button" className={"gl-tile" + (dailyReady ? " gl-sel" : "")} onClick={() => { if (!opening && !busyRef.current && isFreeReady(latestRef.current.meta.daily)) claimDaily(); }} disabled={opening || !dailyReady} aria-label={dailyReady ? "Claim free pack" : "Free pack on cooldown"} style={{ opacity: dailyReady ? 1 : 0.82 }}>
@@ -2527,11 +2835,11 @@ export default function GridironLegends() {
             </div>
             {PACKS.map((pack) => (
               <div key={pack.id} className="gl-packcell">
-                <button type="button" className={"gl-tile" + (selectedPack === pack.id ? " gl-sel" : "")} onClick={() => pickPack(pack.id)}>
+                <button type="button" className={"gl-tile" + (selectedPack === pack.id ? " gl-sel" : "")} onClick={() => pickPack(pack.id)} style={{ opacity: isPackUnlocked(pack.id, rebirth) ? 1 : 0.78 }}>
                   <PackThumb pack={pack} />
                   <div className="gl-tile-name">{pack.id === "season" ? "Season · " + SEASON_THEME[seasonOf()].name : pack.name}</div>
-                  <div className="gl-blurb">{pack.blurb}</div>
-                  <div className="gl-tile-price">{money(pack.price)} <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.75 }}>per pack</span></div>
+                  <div className="gl-blurb">{isPackUnlocked(pack.id, rebirth) ? pack.blurb : "Rebirth " + packUnlockAt(pack.id) + " to unlock."}</div>
+                  <div className="gl-tile-price">{!isPackUnlocked(pack.id, rebirth) ? <span style={{ color: "#ffe27a" }}>Rebirth {packUnlockAt(pack.id)} to unlock</span> : pack.id === "season" ? <span>{money(pack.price)} <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.75 }}>per pack · {seasonLeft}/10 today</span></span> : <span>{money(pack.price)} <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.75 }}>per pack</span></span>}</div>
                 </button>
                 <button type="button" className="gl-odds" onClick={() => { setOddsPack(oddsPack === pack.id ? null : pack.id); setSelectedPack(pack.id); }}>Odds</button>
               </div>
@@ -2540,9 +2848,9 @@ export default function GridironLegends() {
           {selected ? (
             <div style={{ marginTop: 14, padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.28)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>{selected.name}</div>
-              <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>{selected.blurb} 1 card · {selected.hint} · {money(selected.price)} per pack (10 packs {money(selected.price * 10)}).</div>
-              <div style={{ marginTop: 10, fontSize: 13 }}>{readyPack && readyPack.packId === selected.id ? "Your " + selected.name + " is ready below — tap the sealed pack to open it." : "Tap the tile to get a pack, then rip it below."}</div>
-              <ChaseRow packId={selected.id} supers={heldSupers} />
+              <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>{!isPackUnlocked(selected.id, rebirth) ? "Rebirth " + packUnlockAt(selected.id) + " to unlock this pack. Rebirthing keeps your cards and resets your coins." : selected.blurb + " 1 card · " + selected.hint + " · " + money(selected.price) + " per pack (10 packs " + money(selected.price * 10) + ")." + (selected.id === "season" ? " " + seasonLeft + "/10 opens today (resets at midnight)." : "")}</div>
+              <div style={{ marginTop: 10, fontSize: 13 }}>{!isPackUnlocked(selected.id, rebirth) ? "Reach a collection worth " + money(nextRebirthAt) + " to Rebirth." : readyPack && readyPack.packId === selected.id ? "Your " + selected.name + " is ready below — tap the sealed pack to open it." : "Tap the tile to get a pack, then rip it below."}</div>
+              {selected.id !== "free" ? <ChaseRow packId={selected.id} supers={heldSupers} /> : null}
               {selected.id === "boom" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>A 1/1 here can be any of the {HOME_CHASE_IDS.size} ★ home chase 1/1s (see the Chase Cards tab). Seasonal and POTW chase cards are only in their own packs.</div> : selected.id === "season" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>Active season: {SEASON_THEME[seasonOf()].name} ({SEASON_THEME[seasonOf()].range}). Changes to {SEASON_THEME[nextSeasonChange().id].name} on {formatLongDate(nextSeasonChange().at)}. Only this season's 3 ★ chase 1/1s can be pulled now.</div> : selected.id === "potw" ? <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>This pack keeps a 25% shot at a green Player of the Week card. A small share of the rest can be a 1/1, including one of this pack's 3 ★ chase 1/1s.</div> : null}
             </div>
           ) : <div style={{ marginTop: 12, fontSize: 13, opacity: 0.8 }}>Tap a pack to select it.</div>}
@@ -2555,6 +2863,10 @@ export default function GridironLegends() {
                   <span style={{ fontWeight: 700 }}>{formatPct(r.tenths[oddsFocus] / 10)}</span>
                 </div>
               ))}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "5px 0", borderTop: "1px solid rgba(0,0,0,0.08)", fontSize: 13 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 12, height: 12, borderRadius: 3, background: RAINBOW }} />★ Chase 1/1</span>
+                <span style={{ fontWeight: 700 }}>{oddsFocus === "standard" || chaseSlotPct(oddsFocus) === 0 ? (isRebirthPack(oddsFocus) && currentRebirth() < 3 ? "Unlocks at Rebirth 3" : "None") : formatPct(chaseSlotPct(oddsFocus))}</span>
+              </div>
               <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700 }}>{oddsFocus === "free" ? <>Free · average card value {money(evOf("free"))}</> : <>Price {money(PB[oddsFocus].price)} · average card value {money(evOf(oddsFocus))} ({Math.round((evOf(oddsFocus) / PB[oddsFocus].price) * 100)}% of price)</>}</div>
               <div style={{ fontSize: 12, marginTop: 8, opacity: 0.75 }}>{oddsFocus === "free" ? "Chance per pack. The Free Pack can pull any card obtainable in the game: every player and every rarity from Standard, Rising Stars, Stars, Legends, Player of the Week, Boom or Bust, and the current Season pack, including inserts, the POTW pack's 3 ★ chase 1/1s, and this season's 3 ★ chase 1/1s. Mostly Base and Silver. Rookie Phenoms are a 0.01% sliver here (they mainly drop in Rising Stars). Card values match the source pack (a Boom or Bust Base is a Bust). Owned chase 1/1s cannot be pulled again." : <>Chance per pack. The cheapest card in this pack is worth {money(Math.min(...poolOf(oddsFocus).map((p) => valueOf(p, oddsFocus === "potw" ? "silver" : "base", oddsFocus))))}{oddsFocus === "potw" ? "." : " and every 1/1 is worth at least " + money(oddsFocus === "boom" ? BOOM_FLOOR.super : 1000) + "."} Card values swing widely: most pulls are worth less than the pack, and a rare hit is worth far more. {oddsFocus === "standard" ? "The Standard pack draws from every player in the set. Player of the Week cards (green) can drop in any pack at 0.4%. Rookie Phenoms can drop in any pack at 0.01%; they are mainly found in Rising Stars (3%)." : oddsFocus === "potw" ? "Silver cards come from every player in the set; Player of the Week cards come from this season's weekly award winners. A small share of pulls are 1/1s (taken from Silver; the 25% POTW chance is unchanged), and some of those 1/1s are one of this pack's 3 ★ chase 1/1s. Rookie Phenoms can drop at 0.01%." : oddsFocus === "boom" ? "Boom or Bust draws from every player in the set. Base is the Bust, worth only a few coins. An Autograph or 1/1 is the Boom: every Auto is worth at least " + money(BOOM_FLOOR.auto) + " and every 1/1 at least " + money(BOOM_FLOOR.super) + ". A 1/1 here can also be one of the " + CHASE_IDS.size + " chase 1/1s. Player of the Week cards (green) drop at 0.4%. Rookie Phenoms can drop at 0.01%." : oddsFocus === "season" ? "The Season pack draws from this season's themed player list. Base cards drop at 34%, with the other rarities rebalanced around that. Its three ★ chase 1/1s are unique to this season and cannot be pulled after the season changes (cards you already pulled stay in your binder). Player of the Week cards (green) can drop at 0.5%. Rookie Phenoms can drop at 0.01%." : "Each pack draws only from its own player pool, never shared with the other packs, except Rookie Phenoms, which are always the top young Rising Stars players. Rising Stars has a 3% shot at a Rookie Phenom; every other pack has a 0.01% shot. The Stars pack has a 4% shot at Gridiron Kings and a 4% shot at Defensive Walls. Player of the Week cards (green) can drop in any pack at 0.4%."}</>}</div>
             </div>
@@ -2566,7 +2878,7 @@ export default function GridironLegends() {
         <div data-gl-stage={stage} className="gl-rip" style={{ animation: shake }}>
           {stage === "tearing" || (stage === "idle" && readyPack) ? (
             <>
-              <PackArt tearing={stage === "tearing"} packId={readyPack?.packId ?? packId} charged={tearHot && stage === "tearing"} disabled={opening} short={!canBuy1} onOpen={startOpen} />
+              <PackArt tearing={stage === "tearing"} packId={readyPack?.packId ?? packId} charged={tearHot && stage === "tearing"} disabled={opening || !packReady} short={!canBuy1 && packReady} onOpen={startOpen} />
               {stage === "idle" ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                   <ChaseRow packId={curPack.id} supers={heldSupers} />
@@ -2574,7 +2886,7 @@ export default function GridironLegends() {
                     <Button label={"Open pack · " + money(curPack.price)} variant="primary" onClick={startOpen} disabled={!canBuy1} />
                     {curPack.id !== "free" ? <Button label={"Open 10 at once · " + money(curPack.price * 10)} onClick={openTen} disabled={!canBuy10} /> : null}
                   </div>
-                  {!canBuy1 ? <Text>Not enough funds — a {curPack.name} costs {money(curPack.price)} and you have {money(balance)}. Sell cards from your binder to get more.</Text> : !canBuy10 ? <Text>Not enough funds to open 10 — that costs {money(curPack.price * 10)} and you have {money(balance)}.</Text> : null}
+                  {!isPackUnlocked(curPack.id, rebirth) ? <Text>Rebirth {packUnlockAt(curPack.id)} to unlock the {curPack.name}.</Text> : curPack.id === "season" && seasonLeft <= 0 ? <Text>The Season pack is limited to 10 opens per day. You are at 10/10 today. It resets at midnight.</Text> : !canBuy1 ? <Text>Not enough funds — a {curPack.name} costs {money(curPack.price)} and you have {money(balance)}. Sell cards from your binder to get more.</Text> : !canBuy10 ? <Text>{curPack.id === "season" && seasonLeft < 10 ? "Season opens left today: " + seasonLeft + "/10. Open them one at a time, or wait until midnight to open 10." : "Not enough funds to open 10 — that costs " + money(curPack.price * 10) + " and you have " + money(balance) + "."}</Text> : null}
                 </div>
               ) : null}
             </>
@@ -2638,7 +2950,20 @@ export default function GridironLegends() {
 
       {tab === "collection" ? (
       <Section heading="Collection">
-        <Text>Your pulls so far across all three packs.</Text>
+        <Text>Your binder, records, and Rebirth progress.</Text>
+        <div style={{ margin: "8px 0 14px", padding: "12px 14px", borderRadius: 12, background: "rgba(40,16,70,0.35)", border: "1px solid rgba(226,200,255,0.35)" }}>
+          <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>Records & Rebirth</div>
+          <Metrics metrics={[
+            { value: bestPull ? money(bestPull.value) : "—", label: "Best Pull", detail: bestPull ? bestPull.name + " · " + RB[bestPull.rarity].name + " · " + packOf(bestPull.packId).name.replace(" Pack", "") + (bestPull.date ? " · " + bestPull.date : "") : "Open a pack to set your first best pull" },
+            { value: money(bestCollection), label: "Best Collection", detail: "Peak binder value · now " + money(binderValue) },
+            { value: String(rebirth), label: "Rebirths", detail: "Next at " + money(nextRebirthAt) + (canRebirth ? " · ready" : "") },
+          ]} />
+          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <Button label={confirmRebirth ? "Confirm Rebirth · coins reset, cards kept" : "Rebirth"} variant="primary" onClick={doRebirth} disabled={opening || !canRebirth} />
+            {confirmRebirth ? <Button label="Cancel" onClick={() => setConfirmRebirth(false)} /> : null}
+            {!canRebirth ? <span style={{ fontSize: 12, opacity: 0.75 }}>Need {money(Math.max(0, nextRebirthAt - binderValue))} more in the binder. Rebirth keeps your cards.</span> : <span style={{ fontSize: 12, opacity: 0.75 }}>Keeps all cards, resets coins to {money(START_BAL)}.</span>}
+          </div>
+        </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
           <Button label="💾 Save" variant="primary" onClick={saveNow} />
           <span style={{ fontSize: 12, color: theme.text.secondary }}>{savedText}</span>
@@ -2671,7 +2996,7 @@ export default function GridironLegends() {
         <Metrics metrics={[
           { value: String(totalPacks), label: "Packs opened", detail: packMix },
           { value: String(totalPulled), label: "Cards pulled", detail: collection.length + " in binder worth " + money(binderValue) + " · " + uniquePlayers + " unique" },
-          { value: best ? RB[best.rarity].short : "—", label: "Best pull", detail: best ? RB[best.rarity].name + " · " + playerOf(best.playerId).name + " · " + cardOvr(best) + " OVR" : "—" },
+          { value: best ? RB[best.rarity].short : "—", label: "Top card in binder", detail: best ? RB[best.rarity].name + " · " + playerOf(best.playerId).name + " · " + cardOvr(best) + " OVR" : "—" },
           { value: avgOvr, label: "Avg rating per pull", detail: collection.length === 0 ? "No cards yet" : "OVR across " + collection.length + " cards in binder" },
           { value: money(balance), label: "Balance", detail: "Coins" },
         ]} />
@@ -2718,16 +3043,17 @@ export default function GridironLegends() {
       ) : null}
       {tab === "chase" ? (
       <Section heading="Chase Cards">
-        <Text>Every home pack (and the Boom or Bust pack) hides named ★ chase 1/1s. The Season pack has three of its own, unique to the active season and different from every other season. Only the current season's three can be pulled; once you pull one it is gone from the pack, shows as Pulled here, and stays in your binder after the season changes (or you can sell it). The Player of the Week pack has three ★ chase 1/1s of its own. A chase pulled from the Free Pack is the same card as from its home pack and counts here.</Text>
+        <Text>Every home pack (and the Boom or Bust pack) hides named ★ chase 1/1s. The Season pack has three of its own, unique to the active season and different from every other season. Only the current season's three can be pulled; once you pull one it is gone from the pack, shows as Pulled here, and stays in your binder after the season changes (or you can sell it). The Player of the Week pack has three ★ chase 1/1s of its own. Rebirth packs get exclusive chase 1/1s at Rebirth 3 and 5. A chase pulled from the Free Pack is the same card as from its home pack and is listed only under that pack — the Free Pack has no chase section of its own.</Text>
         <Metrics metrics={[
           { value: heldSupers.filter((id) => HOME_CHASE_IDS.has(id)).length + "/" + HOME_CHASE_IDS.size, label: "Home chase 1/1s", detail: "Rising Stars, Stars and Legends" },
           { value: heldSupers.filter((id) => POTW_CHASE_IDS.has(id)).length + "/3", label: "POTW chase 1/1s", detail: "Player of the Week pack" },
           { value: heldSupers.filter((id) => SEASON_CHASE[seasonOf()].some((p) => p.id === id)).length + "/3", label: "This season", detail: SEASON_THEME[seasonOf()].name + " chase 1/1s" },
-          { value: Math.round(CHASE_SHARE * 100) + "%", label: "Chase share of a 1/1", detail: "Of the rare 1/1 slot in each pack" },
+          { value: heldSupers.filter((id) => RB_CHASE_IDS.has(id)).length + "/" + RB_CHASE_IDS.size, label: "Rebirth chase 1/1s", detail: "Unlock at Rebirth 3 and 5" },
         ]} />
         <ChaseRow packId="season" supers={heldSupers} />
         <ChaseRow packId="potw" supers={heldSupers} />
         {HOME.filter((h) => chaseOf(h).length > 0).map((h) => <ChaseRow key={h} packId={h} supers={heldSupers} />)}
+        {RB_CHASE.length > 0 ? <ChaseRow packId="rb1" supers={heldSupers} /> : null}
         {SEASON_IDS.filter((id) => id !== seasonOf() && SEASON_CHASE[id].some((pl) => heldSupers.includes(pl.id))).map((id) => <ChaseRow key={id} packId="season" season={id} supers={heldSupers} />)}
       </Section>
       ) : null}
@@ -2779,4 +3105,4 @@ export default function GridironLegends() {
     </Page>
   );
 }
-export { encodeBackup, decodeBackup, loadSave, compactOf, defaultSave, PLAYERS, PBYID, evOf, valueOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, POTW_PLAYERS, POTW_CHASE, parsePackFilter, asPackId, FREE_TENTHS, SEASON_TENTHS, FREE_PACK, RARITIES, drawCard, isChaseCard, originPack, CHASE_IDS, chaseOf, CHASE_SHARE, FREE_COOLDOWN, FREE_AT_KEY, lastFreeAt, peekFreeAt, isFreeReady, armFreeClaim, consumeFreeClaim, mergeFreeMeta, resetFreeClaimForTests, persistFreeAt };
+export { encodeBackup, decodeBackup, loadSave, compactOf, defaultSave, PLAYERS, PBYID, evOf, valueOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, POTW_PLAYERS, POTW_CHASE, parsePackFilter, asPackId, FREE_TENTHS, SEASON_TENTHS, FREE_PACK, RARITIES, drawCard, isChaseCard, originPack, CHASE_IDS, chaseOf, CHASE_SHARE, FREE_COOLDOWN, FREE_AT_KEY, lastFreeAt, peekFreeAt, isFreeReady, armFreeClaim, consumeFreeClaim, mergeFreeMeta, resetFreeClaimForTests, persistFreeAt, setLiveRebirth, currentRebirth, inferRebirth, rebirthReq, packUnlockAt, isPackUnlocked, UNLOCK_AT, RB_CHASE, RB_CHASE_IDS, isRebirthChaseCard, SEASON_DAILY_LIMIT, SEASON_DAY_KEY, peekSeasonUsed, seasonLeftToday, armSeasonClaim, consumeSeasonClaim, mergeSeasonMeta, resetSeasonClaimForTests, persistSeasonStamp };

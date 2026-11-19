@@ -1,4 +1,4 @@
-import { evOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, valueOf, PLAYERS, POTW_PLAYERS, FREE_TENTHS, RARITIES } from "../src/game";
+import { evOf, seasonOf, SEASON_ROSTER, SEASON_CHASE, SEASON_PRICE, packOf, PACKS, PIDS, VERSION, valueOf, PLAYERS, POTW_PLAYERS, FREE_TENTHS, RARITIES, setLiveRebirth, packUnlockAt, rebirthReq, RB_CHASE } from "../src/game";
 
 const money = (n: number) => Math.round(n * 10) / 10;
 const span = (vals: number[]): string => {
@@ -10,7 +10,14 @@ const span = (vals: number[]): string => {
 
 console.log("VERSION", VERSION);
 console.log("season", seasonOf(), "price", SEASON_PRICE);
-console.log("--- ev by pack ---");
+setLiveRebirth(6);
+console.log("--- unlock at ---");
+for (const id of PIDS) console.log(" ", id, packOf(id).name, "rebirth", packUnlockAt(id));
+console.log("--- rebirth req ---");
+for (let i = 0; i < 8; i++) console.log(" ", i, "->", i + 1, rebirthReq(i));
+console.log("--- rebirth chases ---");
+for (const p of RB_CHASE) console.log(" ", p.name);
+console.log("--- ev by pack (rebirth 6, all packs unlocked) ---");
 for (const id of PIDS) {
   const pack = packOf(id);
   const ev = evOf(id);
