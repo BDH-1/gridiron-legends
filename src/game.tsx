@@ -216,7 +216,7 @@ const rpool = (id: PackId, r: RarityId, allSeasons = false): Player[] => {
   const k = id + "|" + r + (allSeasons ? "|all" : "");
   return poolCache[k] ?? (poolCache[k] = base.filter(f));
 };
-const CHASE_NAMES: Record<HomeId, string[]> = { rookie: ["Caleb Williams", "Travis Hunter", "Cam Ward", "Ashton Jeanty", "Drake Maye", "Marvin Harrison Jr."], stars: ["Patrick Mahomes", "Josh Allen", "Lamar Jackson", "Joe Burrow", "Bijan Robinson", "Ja'Marr Chase"], legends: ["Tom Brady", "Jerry Rice", "Johnny Unitas", "Jim Brown", "Walter Payton", "Emmitt Smith"] };
+const CHASE_NAMES: Record<HomeId, string[]> = { rookie: ["Caleb Williams", "Travis Hunter", "Cam Ward", "Ashton Jeanty", "Drake Maye", "Marvin Harrison Jr."], stars: ["Patrick Mahomes", "Josh Allen", "Lamar Jackson", "Joe Burrow", "Bijan Robinson", "Ja'Marr Chase"], legends: ["Tom Brady", "Jerry Rice", "Ray Lewis", "Jim Brown", "Walter Payton", "Emmitt Smith"] };
 const CHASE: Record<HomeId, Player[]> = { rookie: [], stars: [], legends: [] };
 for (const h of HOME) CHASE[h] = PLAYERS.filter((p) => p.packId === h && CHASE_NAMES[h].includes(p.name));
 const HOME_CHASE_IDS = new Set(([] as Player[]).concat(...HOME.map((h) => CHASE[h])).map((p) => p.id));
@@ -303,7 +303,7 @@ const V_CAP: Record<RarityId, number> = { base: 25, silver: 60, kings: 220, wall
 const POS_HYPE: Record<string, number> = { QB: 1.7, WR: 1.15, RB: 1, TE: 0.8, CB: 0.55, S: 0.5, LB: 0.55, DE: 0.65, DT: 0.45, OT: 0.3 };
 // Star power from the player's real rating: about 0.6 at an 80, 1.0 at 86, 2 at 93 and 3.4 at 99.
 const ratingHype = (r: number): number => 0.7 * 0.6 * Math.exp(0.0907 * (Math.min(99, Math.max(60, r)) - 80));
-const ELITE: Record<string, number> = Object.fromEntries("Patrick Mahomes:4;Josh Allen:3.5;Lamar Jackson:3.5;Joe Burrow:3;Bijan Robinson:3;Christian McCaffrey:2.5;Justin Jefferson:3;Ja'Marr Chase:3;Caleb Williams:4;Jayden Daniels:3.5;Travis Kelce:2.5;Saquon Barkley:2.5;CeeDee Lamb:2.5;Jalen Hurts:2.5;Cam Ward:3;Drake Maye:3;Travis Hunter:4;Ashton Jeanty:3;Malik Nabers:2.5;Brock Bowers:2.5;Puka Nacua:2.2;Justin Herbert:2;Micah Parsons:2;Myles Garrett:2;Tom Brady:8;Jerry Rice:6;Joe Montana:6;Johnny Unitas:6;Walter Payton:6;Deion Sanders:6;Emmitt Smith:5;Peyton Manning:6;Barry Sanders:6;Randy Moss:5;Jim Brown:5;Dan Marino:5;John Elway:5;Brett Favre:4;Lawrence Taylor:5;Ray Lewis:3;Troy Aikman:3;Steve Young:3;Marshall Faulk:3;Adrian Peterson:4;Aaron Donald:3;Rob Gronkowski:3;Jim Kelly:2;Eli Manning:2;Drew Brees:3;Kurt Warner:2.5;Larry Fitzgerald:3;Michael Irvin:2;Terrell Davis:2;Reggie White:3;Eric Dickerson:3;LaDainian Tomlinson:3;Michael Strahan:2;Charles Woodson:2;Ed Reed:2;Troy Polamalu:2;Brian Urlacher:2;Cam Newton:2.5;Calvin Johnson:3;Tony Gonzalez:2;Jerome Bettis:2;Shannon Sharpe:2;Dak Prescott:1.5;Matthew Stafford:1.4;Aaron Rodgers:2;Brock Purdy:1.3;Jared Goff:1.2;Bo Nix:1.5;Jordan Love:1.3;C.J. Stroud:1.6;Trevor Lawrence:1.2;Baker Mayfield:1.2;Sam Darnold:1.2;Tua Tagovailoa:1.1;Kyler Murray:1.4;Jaxson Dart:1.8;Shedeur Sanders:2.5;Michael Penix Jr.:1.5;J.J. McCarthy:1.5;Marvin Harrison Jr.:1.8;Brian Thomas Jr.:1.5;Jaxon Smith-Njigba:2;Tetairoa McMillan:1.6;Omarion Hampton:1.5;Rome Odunze:1.3;Jahmyr Gibbs:2;Amon-Ra St. Brown:1.6;Jonathan Taylor:1.5;Derrick Henry:1.5;Trey McBride:1.8;George Kittle:1.5;Abdul Carter:1.8;Will Anderson Jr.:1.3;Nick Bosa:1.3;Aidan Hutchinson:1.3;T.J. Watt:1.3;Maxx Crosby:1.4;Fred Warner:1.2;Patrick Surtain II:1.3;Colston Loveland:1.3;Mason Graham:1.3;Jalen Carter:1.2;Dalton Kincaid:1.1;Sam LaPorta:1.1;Zay Flowers:1.1;Rashee Rice:1.3;Xavier Worthy:1.1".split(";").map((kv) => { const i = kv.lastIndexOf(":"); return [kv.slice(0, i), Number(kv.slice(i + 1))]; }));
+const ELITE: Record<string, number> = Object.fromEntries("Patrick Mahomes:4;Josh Allen:3.5;Lamar Jackson:3.5;Joe Burrow:3;Bijan Robinson:3;Christian McCaffrey:2.5;Justin Jefferson:3;Ja'Marr Chase:3;Caleb Williams:4;Jayden Daniels:3.5;Travis Kelce:2.5;Saquon Barkley:2.5;CeeDee Lamb:2.5;Jalen Hurts:2.5;Cam Ward:3;Drake Maye:3;Travis Hunter:4;Ashton Jeanty:3;Malik Nabers:2.5;Brock Bowers:2.5;Puka Nacua:2.2;Justin Herbert:2;Micah Parsons:2;Myles Garrett:2;Tom Brady:8;Jerry Rice:6;Joe Montana:6;Johnny Unitas:3;Walter Payton:6;Deion Sanders:6;Emmitt Smith:5;Peyton Manning:6;Barry Sanders:6;Randy Moss:5;Jim Brown:5;Dan Marino:5;John Elway:5;Brett Favre:4;Lawrence Taylor:5;Ray Lewis:6;Troy Aikman:3;Steve Young:3;Marshall Faulk:3;Adrian Peterson:4;Aaron Donald:3;Rob Gronkowski:3;Jim Kelly:2;Eli Manning:2;Drew Brees:3;Kurt Warner:2.5;Larry Fitzgerald:3;Michael Irvin:2;Terrell Davis:2;Reggie White:3;Eric Dickerson:3;LaDainian Tomlinson:3;Michael Strahan:2;Charles Woodson:2;Ed Reed:2;Troy Polamalu:2;Brian Urlacher:2;Cam Newton:2.5;Calvin Johnson:3;Tony Gonzalez:2;Jerome Bettis:2;Shannon Sharpe:2;Dak Prescott:1.5;Matthew Stafford:1.4;Aaron Rodgers:2;Brock Purdy:1.3;Jared Goff:1.2;Bo Nix:1.5;Jordan Love:1.3;C.J. Stroud:1.6;Trevor Lawrence:1.2;Baker Mayfield:1.2;Sam Darnold:1.2;Tua Tagovailoa:1.1;Kyler Murray:1.4;Jaxson Dart:1.8;Shedeur Sanders:2.5;Michael Penix Jr.:1.5;J.J. McCarthy:1.5;Marvin Harrison Jr.:1.8;Brian Thomas Jr.:1.5;Jaxon Smith-Njigba:2;Tetairoa McMillan:1.6;Omarion Hampton:1.5;Rome Odunze:1.3;Jahmyr Gibbs:2;Amon-Ra St. Brown:1.6;Jonathan Taylor:1.5;Derrick Henry:1.5;Trey McBride:1.8;George Kittle:1.5;Abdul Carter:1.8;Will Anderson Jr.:1.3;Nick Bosa:1.3;Aidan Hutchinson:1.3;T.J. Watt:1.3;Maxx Crosby:1.4;Fred Warner:1.2;Patrick Surtain II:1.3;Colston Loveland:1.3;Mason Graham:1.3;Jalen Carter:1.2;Dalton Kincaid:1.1;Sam LaPorta:1.1;Zay Flowers:1.1;Rashee Rice:1.3;Xavier Worthy:1.1".split(";").map((kv) => { const i = kv.lastIndexOf(":"); return [kv.slice(0, i), Number(kv.slice(i + 1))]; }));
 const PACK_PREM: Record<HomeId | "season", number> = { rookie: 1.5, stars: 0.82, legends: 0.792, season: 1 };
 const MIN_PRICE = Math.min(...PACKS.map((x) => x.price));
 const hypeOf = (p: Player): number => (POS_HYPE[p.pos] ?? 1) * ratingHype(ratingOf(p)) * (ELITE[p.name] ?? 1) * PACK_PREM[p.packId];
@@ -338,13 +338,13 @@ const chaseFamilyOf = (p: Player): ChaseFamily => {
 const CHASE_BAND: Record<ChaseFamily, [number, number]> = { rookie: [3000, 4000], potw: [3400, 4300], season: [3600, 4600], stars: [4200, 5200], legends: [19000, 21000], rebirth: [5500, 6000] };
 const chasePeersOf = (fam: ChaseFamily): Player[] => (fam === "rebirth" ? RB_CHASE : fam === "potw" ? POTW_CHASE : fam === "season" ? ALL_SEASON_CHASE : CHASE[fam]);
 const chasePrestige = (p: Player): number => (POS_HYPE[p.pos] ?? 1) * ratingHype(ratingOf(p)) * (ELITE[p.name] ?? 1);
-// Named chase 1/1s sell in a prestige band of 3,000-6,000, except Legends chases (about 20,000), the Johnny Unitas chase (exactly 21,000), and the Tom Brady chase (exactly 50,000).
+// Named chase 1/1s sell in a prestige band of 3,000-6,000, except Legends chases (about 20,000), the Ray Lewis chase (exactly 21,000), and the Tom Brady chase (exactly 50,000).
 const chaseValueOf = (p: Player): number => {
   if (p.name === "Tom Brady") return 50000;
-  if (p.name === "Johnny Unitas") return 21000;
+  if (p.name === "Ray Lewis") return 21000;
   const fam = chaseFamilyOf(p);
   const [lo, hi] = CHASE_BAND[fam];
-  const peers = chasePeersOf(fam).filter((x) => x.name !== "Tom Brady" && x.name !== "Johnny Unitas");
+  const peers = chasePeersOf(fam).filter((x) => x.name !== "Tom Brady" && x.name !== "Ray Lewis");
   const scores = (peers.length ? peers : [p]).map(chasePrestige);
   const loS = Math.min(...scores), hiS = Math.max(...scores);
   const t = hiS <= loS ? 0.5 : (chasePrestige(p) - loS) / (hiS - loS);
@@ -692,14 +692,19 @@ function inflateRow(raw: string): Record<string, unknown> | null {
     return json ? JSON.parse(json) as Record<string, unknown> : null;
   } catch { return null; }
 }
-const UNITAS_LEGENDS = PLAYERS.find((p) => p.name === "Johnny Unitas" && p.packId === "legends");
-const isMontanaSuper = (playerId: string, rarity: RarityId): boolean => rarity === "super" && (PBYID[playerId]?.name === "Joe Montana" || playerId.endsWith("-Joe Montana"));
-function remapMontanaChaseId(playerId: string, rarity: RarityId): string {
-  return UNITAS_LEGENDS && isMontanaSuper(playerId, rarity) ? UNITAS_LEGENDS.id : playerId;
+const RAY_LEGENDS = PLAYERS.find((p) => p.name === "Ray Lewis" && p.packId === "legends");
+const retiredChaseNames = new Set(["Johnny Unitas", "Joe Montana"]);
+const isRetiredLegendChase = (playerId: string, rarity: RarityId): boolean => {
+  if (rarity !== "super") return false;
+  const name = PBYID[playerId]?.name;
+  return (name != null && retiredChaseNames.has(name)) || playerId.endsWith("-Johnny Unitas") || playerId.endsWith("-Joe Montana");
+};
+function remapRetiredChaseId(playerId: string, rarity: RarityId): string {
+  return RAY_LEGENDS && isRetiredLegendChase(playerId, rarity) ? RAY_LEGENDS.id : playerId;
 }
-function remapMontanaChaseCard(c: Card): Card {
-  if (!UNITAS_LEGENDS || !isMontanaSuper(c.playerId, c.rarity)) return c;
-  return { ...c, playerId: UNITAS_LEGENDS.id };
+function remapRetiredChaseCard(c: Card): Card {
+  if (!RAY_LEGENDS || !isRetiredLegendChase(c.playerId, c.rarity)) return c;
+  return { ...c, playerId: RAY_LEGENDS.id };
 }
 function loadSave(override?: string): Save {
   try {
@@ -715,7 +720,7 @@ function loadSave(override?: string): Save {
         const packId = asPackId(it.packId, PBYID[it.playerId]?.packId === "season" ? "season" : PBYID[it.playerId]?.packId);
         if (!packId) continue;
         const via = asPackId(it.via);
-        collection.push(remapMontanaChaseCard({ uid: it.uid, playerId: it.playerId, rarity: it.rarity, packId, seq: typeof it.seq === "number" ? it.seq : collection.length + 1, ...(via && via !== packId ? { via } : {}) }));
+        collection.push(remapRetiredChaseCard({ uid: it.uid, playerId: it.playerId, rarity: it.rarity, packId, seq: typeof it.seq === "number" ? it.seq : collection.length + 1, ...(via && via !== packId ? { via } : {}) }));
       }
     }
     const oc = zeroCounts();
@@ -729,7 +734,7 @@ function loadSave(override?: string): Save {
     if (rawPulls && typeof rawPulls === "object") { for (const k of Object.keys(rawPulls)) { const n = rawPulls[k]; if (typeof n === "number" && n >= 0) pulls[k] = Math.floor(n); } }
     else { for (const c of collection) { const k = c.packId + "|" + c.rarity; pulls[k] = (pulls[k] ?? 0) + 1; } }
     const sup = new Set<string>(collection.filter((c) => c.rarity === "super").map((c) => c.playerId));
-    if (Array.isArray(row.supers)) { for (const s of row.supers as unknown[]) { if (typeof s === "string") { const id = remapMontanaChaseId(s, "super"); if (PBYID[id]) sup.add(id); } } }
+    if (Array.isArray(row.supers)) { for (const s of row.supers as unknown[]) { if (typeof s === "string") { const id = remapRetiredChaseId(s, "super"); if (PBYID[id]) sup.add(id); } } }
     const balance = typeof row.balance === "number" && row.balance >= 0 ? Math.round(row.balance) : START_BAL;
     const readyPack = rp && isPack(rp.packId) && rp.packId !== "free" ? { packId: rp.packId } : null;
     const meta = mergeSeasonMeta(mergeFreeMeta(loadMeta(row.meta)));
@@ -741,8 +746,8 @@ function loadSave(override?: string): Save {
     let bestCollection = typeof row.bestCollection === "number" && row.bestCollection >= 0 ? Math.round(row.bestCollection) : 0;
     if (bestCollection < colVal) bestCollection = colVal;
     let bestPull = parseBestPull(row.bestPull);
-    if (bestPull && isMontanaSuper(bestPull.playerId, bestPull.rarity) && UNITAS_LEGENDS) {
-      bestPull = { ...bestPull, name: UNITAS_LEGENDS.name, playerId: UNITAS_LEGENDS.id };
+    if (bestPull && isRetiredLegendChase(bestPull.playerId, bestPull.rarity) && RAY_LEGENDS) {
+      bestPull = { ...bestPull, name: RAY_LEGENDS.name, playerId: RAY_LEGENDS.id };
     }
     if (bestPull && bestPull.playerId && PBYID[bestPull.playerId] && isRarity(bestPull.rarity)) {
       const held: Card = { uid: "bp", playerId: bestPull.playerId, rarity: bestPull.rarity, packId: bestPull.packId, seq: 0 };
