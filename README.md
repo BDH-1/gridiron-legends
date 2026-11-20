@@ -1,6 +1,6 @@
 # Gridiron Legends
 
-A fan-made football card pack simulator (version 4.1). Open packs, build a collection, and chase autographs and 1/1 Superfractals.
+A fan-made football card pack simulator (version 0.01). Open packs, build a collection, and chase autographs and 1/1 Superfractals.
 
 **Play it:** [https://bdh-1.github.io/gridiron-legends/](https://bdh-1.github.io/gridiron-legends/)
 
