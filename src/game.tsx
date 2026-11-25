@@ -18,7 +18,7 @@ interface Boosts { luckPacks: number; chasePacks: number; coinSells: number; fre
 interface Save { v: 2; collection: Card[]; openedCounts: Record<PackId, number>; soundOn: boolean; cardSeq: number; readyPack: { packId: PackId } | null; balance: number; pulls: Record<string, number>; supers: string[]; locked: boolean; meta: Meta; rebirth: number; bestPull: BestPull | null; bestCollection: number; boosts: Boosts }
 
 const SET = "Gridiron Legends";
-const VERSION = "2.44.00"; // visible version label
+const VERSION = "2.45.00"; // visible version label
 const YEAR = "2026";
 const HOME: HomeId[] = ["rookie", "stars", "legends"];
 const SEASON_IDS: SeasonId[] = ["superbowl", "rookies", "halloween", "thanksgiving", "christmas"];
@@ -2136,8 +2136,8 @@ function SetRow(p: { def: SetDef; n: number; claimed: boolean; onClaim: () => vo
 }
 
 // ---- tabs ----
-type TabId = "store" | "collection" | "achievements" | "chase" | "sets";
-const TABS: [TabId, string][] = [["store", "Store"], ["collection", "Collection"], ["achievements", "Achievements"], ["chase", "Chase Cards"], ["sets", "Sets"]];
+type TabId = "store" | "shop" | "collection" | "achievements" | "chase" | "sets";
+const TABS: [TabId, string][] = [["store", "Store"], ["shop", "Coin Shop"], ["collection", "Collection"], ["achievements", "Achievements"], ["chase", "Chase Cards"], ["sets", "Sets"]];
 const TAB_KEY = "gl-legends-tab";
 const FILTER_KEY = "gl-legends-filters";
 interface BinderFilters { team: string; rarity: string; pack: string; query: string }
@@ -3133,28 +3133,6 @@ export default function GridironLegends() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 20, fontWeight: 800, fontStyle: "italic", textTransform: "uppercase", letterSpacing: 0.8, fontSize: 13 }}>Coin Shop</div>
-          <Text>Spend coins on boosts. Active boosts stay on this save and show remaining uses below.</Text>
-          {boosts.luckPacks > 0 || boosts.chasePacks > 0 || boosts.coinSells > 0 || boosts.freeSkips > 0 || (boosts.seasonBonus > 0 && boosts.seasonBonusDay === localDay()) ? (
-            <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 10, background: "rgba(255,226,122,0.16)", border: "1px solid rgba(255,226,122,0.35)", fontSize: 13, fontWeight: 700, lineHeight: 1.45 }}>
-              Active: {[boosts.luckPacks > 0 ? "Luck Boost " + boosts.luckPacks + " pack" + (boosts.luckPacks === 1 ? "" : "s") + " left" : "", boosts.chasePacks > 0 ? "Chase Boost " + boosts.chasePacks + " pack" + (boosts.chasePacks === 1 ? "" : "s") + " left" : "", boosts.coinSells > 0 ? "Coin Boost +25% (" + boosts.coinSells + " sell" + (boosts.coinSells === 1 ? "" : "s") + " left)" : "", boosts.freeSkips > 0 ? "Cooldown Skip ×" + boosts.freeSkips : "", boosts.seasonBonus > 0 && boosts.seasonBonusDay === localDay() ? "Extra Season opens +" + boosts.seasonBonus + " today" : ""].filter(Boolean).join(" · ")}
-            </div>
-          ) : <div style={{ marginTop: 6, fontSize: 13, opacity: 0.8 }}>No boosts active.</div>}
-          <div className="gl-grid3" style={{ marginTop: 10 }}>
-            {SHOP.map((item) => {
-              const held = shopHeld(item.id, boosts);
-              const capped = held >= SHOP_CAP[item.id];
-              const can = !capped && balance >= item.price;
-              return (
-                <div key={item.id} className="gl-packcell" style={{ padding: 10, borderRadius: 12, background: "rgba(0,0,0,0.28)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <div className="gl-tile-name">{item.name}</div>
-                  <div className="gl-blurb">{item.blurb}{held > 0 ? " · " + held + " active" : ""}</div>
-                  <div className="gl-tile-price">{money(item.price)}</div>
-                  <div style={{ marginTop: 8 }}><Button label={capped ? "At cap" : can ? "Buy · " + money(item.price) : "Need " + money(item.price)} variant="primary" onClick={() => buyShop(item)} disabled={!can} /></div>
-                </div>
-              );
-            })}
-          </div>
           {selected ? (
             <div style={{ marginTop: 14, padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.28)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div style={{ fontWeight: 800, fontStyle: "italic", textTransform: "uppercase" }}>{selected.name}</div>
@@ -3258,6 +3236,34 @@ export default function GridironLegends() {
         ) : null}
       </Section>
       </>
+      ) : null}
+
+      {tab === "shop" ? (
+      <Section heading="Coin Shop">
+        <div className="gl-store">
+          <Text>Spend coins on boosts. Active boosts stay on this save and show remaining uses below.</Text>
+          {boosts.luckPacks > 0 || boosts.chasePacks > 0 || boosts.coinSells > 0 || boosts.freeSkips > 0 || (boosts.seasonBonus > 0 && boosts.seasonBonusDay === localDay()) ? (
+            <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 10, background: "rgba(255,226,122,0.16)", border: "1px solid rgba(255,226,122,0.35)", fontSize: 13, fontWeight: 700, lineHeight: 1.45 }}>
+              Active: {[boosts.luckPacks > 0 ? "Luck Boost " + boosts.luckPacks + " pack" + (boosts.luckPacks === 1 ? "" : "s") + " left" : "", boosts.chasePacks > 0 ? "Chase Boost " + boosts.chasePacks + " pack" + (boosts.chasePacks === 1 ? "" : "s") + " left" : "", boosts.coinSells > 0 ? "Coin Boost +25% (" + boosts.coinSells + " sell" + (boosts.coinSells === 1 ? "" : "s") + " left)" : "", boosts.freeSkips > 0 ? "Cooldown Skip ×" + boosts.freeSkips : "", boosts.seasonBonus > 0 && boosts.seasonBonusDay === localDay() ? "Extra Season opens +" + boosts.seasonBonus + " today" : ""].filter(Boolean).join(" · ")}
+            </div>
+          ) : <div style={{ marginTop: 6, fontSize: 13, opacity: 0.8 }}>No boosts active.</div>}
+          <div className="gl-grid3" style={{ marginTop: 10 }}>
+            {SHOP.map((item) => {
+              const held = shopHeld(item.id, boosts);
+              const capped = held >= SHOP_CAP[item.id];
+              const can = !capped && balance >= item.price;
+              return (
+                <div key={item.id} className="gl-packcell" style={{ padding: 10, borderRadius: 12, background: "rgba(0,0,0,0.28)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="gl-tile-name">{item.name}</div>
+                  <div className="gl-blurb">{item.blurb}{held > 0 ? " · " + held + " active" : ""}</div>
+                  <div className="gl-tile-price">{money(item.price)}</div>
+                  <div style={{ marginTop: 8 }}><Button label={capped ? "At cap" : can ? "Buy · " + money(item.price) : "Need " + money(item.price)} variant="primary" onClick={() => buyShop(item)} disabled={!can} /></div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Section>
       ) : null}
 
       {tab === "collection" ? (
