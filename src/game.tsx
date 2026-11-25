@@ -18,7 +18,7 @@ interface Boosts { luckPacks: number; chasePacks: number; coinSells: number; fre
 interface Save { v: 2; collection: Card[]; openedCounts: Record<PackId, number>; soundOn: boolean; cardSeq: number; readyPack: { packId: PackId } | null; balance: number; pulls: Record<string, number>; supers: string[]; locked: boolean; meta: Meta; rebirth: number; bestPull: BestPull | null; bestCollection: number; boosts: Boosts }
 
 const SET = "Gridiron Legends";
-const VERSION = "2.45.00"; // visible version label
+const VERSION = "2.46.00"; // visible version label
 const YEAR = "2026";
 const HOME: HomeId[] = ["rookie", "stars", "legends"];
 const SEASON_IDS: SeasonId[] = ["superbowl", "rookies", "halloween", "thanksgiving", "christmas"];
@@ -105,11 +105,11 @@ const COIN_BOOST_PCT = 0.25;
 const COIN_BOOST_CAP = 100;
 interface ShopItem { id: "luck" | "chase" | "coin" | "skip" | "season"; name: string; blurb: string; price: number; uses: number }
 const SHOP: ShopItem[] = [
-  { id: "luck", name: "Luck Boost", blurb: "Better rarity odds for the next 8 packs.", price: 200, uses: 8 },
-  { id: "chase", name: "Chase Boost", blurb: "Raised chase 1/1 odds (12% → 20% of the 1/1 slot) for the next 8 packs.", price: 275, uses: 8 },
-  { id: "coin", name: "Coin Boost", blurb: "+25% sell value on non-chase cards for the next 20 sells (max +100 coins per card).", price: 150, uses: 20 },
-  { id: "skip", name: "Cooldown Skip", blurb: "Makes your next Free Pack ready immediately if the 5-minute cooldown is running.", price: 120, uses: 1 },
-  { id: "season", name: "Extra Season Opens", blurb: "+3 Season pack opens today (you still pay the pack price). Extra opens reset at midnight.", price: 180, uses: 3 },
+  { id: "skip", name: "Cooldown Skip", blurb: "Makes your next Free Pack ready immediately if the 5-minute cooldown is running.", price: 1000, uses: 1 },
+  { id: "coin", name: "Coin Boost", blurb: "+25% sell value on non-chase cards for the next 20 sells (max +100 coins per card).", price: 1500, uses: 20 },
+  { id: "season", name: "Extra Season Opens", blurb: "+3 Season pack opens today (you still pay the pack price). Extra opens reset at midnight.", price: 2000, uses: 3 },
+  { id: "luck", name: "Luck Boost", blurb: "Better rarity odds for the next 8 packs.", price: 3500, uses: 8 },
+  { id: "chase", name: "Chase Boost", blurb: "Raised chase 1/1 odds (12% → 20% of the 1/1 slot) for the next 8 packs.", price: 5000, uses: 8 },
 ];
 const SHOP_CAP: Record<ShopItem["id"], number> = { luck: 24, chase: 24, coin: 40, skip: 3, season: 6 };
 const defaultBoosts = (): Boosts => ({ luckPacks: 0, chasePacks: 0, coinSells: 0, freeSkips: 0, seasonBonus: 0, seasonBonusDay: "" });

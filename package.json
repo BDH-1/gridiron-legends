@@ -1,7 +1,7 @@
 {
   "name": "gridiron-legends",
   "private": true,
-  "version": "2.45.00",
+  "version": "2.46.00",
   "scripts": {
     "build": "esbuild src/main.tsx --bundle --outfile=app.js --format=iife --minify --jsx=automatic --alias:grok/canvas=./src/canvas-shim.tsx --target=es2019"
   },
